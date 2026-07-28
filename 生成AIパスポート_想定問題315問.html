@@ -172,6 +172,15 @@ table.chtbl td.num{text-align:right;font-variant-numeric:tabular-nums;}
 .wrong-item .wa{color:var(--shu);font-weight:600;}
 .wrong-item .we{color:var(--ink-soft);margin-top:4px;font-size:.82rem;}
 .hidden{display:none;}
+/* 学習履歴 */
+.trend-box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 10px 6px;margin-bottom:4px;}
+.trend-box svg{display:block;width:100%;height:auto;}
+.hist-actions{display:flex;gap:14px;justify-content:flex-end;margin-top:8px;}
+.mini-btn{
+  background:none;border:none;font-family:inherit;font-size:.78rem;color:var(--ink-soft);
+  text-decoration:underline;cursor:pointer;padding:6px 2px;
+}
+.mini-btn.danger{color:var(--shu);}
 /* ページ間リンク */
 .xlink{margin:-6px 0 16px;text-align:right;}
 .xlink a{
@@ -197,6 +206,15 @@ footer{margin-top:36px;font-size:.7rem;color:var(--ink-soft);border-top:1px soli
     <div class="sec-label">問題数</div>
     <div class="choice-grid cols3" id="count-grid"></div>
     <button class="btn" id="btn-start">演習を始める</button>
+    <div id="history-sec" class="hidden">
+      <div class="sec-label">学習履歴</div>
+      <div class="trend-box" id="trend-box"></div>
+      <table class="chtbl" id="hist-tbl"></table>
+      <div class="hist-actions">
+        <button class="mini-btn hidden" id="btn-hist-more">全件を表示</button>
+        <button class="mini-btn danger" id="btn-clear-history">履歴を全て削除</button>
+      </div>
+    </div>
     <footer>GUGA公式シラバス(2026年適用版)・公式発表の改訂内容・Web上の出題傾向をもとに独自作成した非公式の演習問題です。実際の試験問題とは異なります。</footer>
   </div>
 
@@ -562,6 +580,7 @@ const CH_NAME={1:"第1章 AIの基礎",2:"第2章 生成AIの系譜",3:"第3章 
 const CH_SHORT={1:"第1章",2:"第2章",3:"第3章",4:"第4章",5:"第5章"};
 
 let range="all", count=20, deck=[], idx=0, log=[], answered=false;
+let sessRange="all", recorded=false, histExpanded=false;
 
 const $=id=>document.getElementById(id);
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
@@ -646,22 +665,24 @@ function buildStart(){
     cg.appendChild(d);
   });
   if(count!==0&&count>avail){count=0;buildStart();}
+  renderHistory();
 }
 
 // --- 出題開始 ---
-function start(pool){
+function start(pool,kind){
   if(pool){deck=pool.slice();}
   else{
     let src=(range==="all")?QUESTIONS.slice():QUESTIONS.filter(q=>q.c===+range);
     shuffle(src);
     deck=(count===0)?src:src.slice(0,count);
   }
+  sessRange=kind||(pool?"retry":range);
   deck=deck.map(q=>{
     const pairs=q.o.map((t,i)=>({t:t,ok:i===q.a}));
     shuffle(pairs);
     return {c:q.c,q:q.q,e:q.e,opts:pairs.map(p=>p.t),ans:pairs.findIndex(p=>p.ok),src:q};
   });
-  idx=0;log=[];
+  idx=0;log=[];recorded=false;
   show("scr-quiz");
   render();
 }
@@ -732,8 +753,72 @@ function next(){
   idx++;render();
 }
 
+// --- 学習履歴 ---
+const HIST_MAX=200;
+function loadHistory(){
+  return store.load("history",[]).filter(s=>
+    s&&typeof s==="object"&&typeof s.ts==="number"&&typeof s.total==="number"&&typeof s.score==="number");
+}
+function saveSession(){
+  if(recorded||log.length===0)return;
+  recorded=true;
+  const ch={};
+  log.forEach(l=>{ch[l.c]=ch[l.c]||{n:0,ok:0};ch[l.c].n++;if(l.ok)ch[l.c].ok++;});
+  const h=loadHistory();
+  h.push({ts:Date.now(),range:sessRange,total:log.length,score:log.filter(l=>l.ok).length,ch:ch});
+  if(h.length>HIST_MAX)h.splice(0,h.length-HIST_MAX);
+  store.save("history",h);
+}
+function rangeLabel(r){
+  if(r==="all")return "全範囲";
+  if(r==="weak")return "苦手問題";
+  if(r==="retry")return "間違い再挑戦";
+  return CH_SHORT[r]||r;
+}
+function fmtDate(ts){
+  const d=new Date(ts),p=n=>(n<10?"0":"")+n;
+  return (d.getMonth()+1)+"/"+d.getDate()+" "+p(d.getHours())+":"+p(d.getMinutes());
+}
+function renderTrend(h){
+  const pts=h.slice(-20);
+  const W=600,H=150,L=34,R=12,T=12,B=24;
+  const x=i=>pts.length===1?(L+(W-L-R)/2):L+(W-L-R)*i/(pts.length-1);
+  const y=v=>T+(H-T-B)*(1-v/100);
+  let s="<svg viewBox='0 0 "+W+" "+H+"' role='img' aria-label='正答率の推移'>";
+  [0,50,100].forEach(v=>{
+    s+="<line x1='"+L+"' y1='"+y(v)+"' x2='"+(W-R)+"' y2='"+y(v)+"' stroke='#E3E0D8' stroke-width='1'/>";
+    s+="<text x='"+(L-6)+"' y='"+(y(v)+4)+"' text-anchor='end' font-size='11' fill='#6B6E76'>"+v+"</text>";
+  });
+  s+="<line x1='"+L+"' y1='"+y(70)+"' x2='"+(W-R)+"' y2='"+y(70)+"' stroke='#C9313D' stroke-width='1' stroke-dasharray='4 4' opacity='.55'/>";
+  s+="<text x='"+(W-R)+"' y='"+(y(70)-5)+"' text-anchor='end' font-size='10' fill='#C9313D' opacity='.8'>合格圏 70</text>";
+  const xy=pts.map((p,i)=>[x(i),y(p.total?Math.round(p.score/p.total*100):0)]);
+  if(xy.length>1)s+="<polyline points='"+xy.map(c=>c[0]+","+c[1]).join(" ")+"' fill='none' stroke='#2A4B7C' stroke-width='2.5' stroke-linejoin='round' stroke-linecap='round'/>";
+  xy.forEach(c=>{s+="<circle cx='"+c[0]+"' cy='"+c[1]+"' r='4' fill='#2A4B7C'/>";});
+  s+="</svg>";
+  $("trend-box").innerHTML=s;
+}
+function renderHistory(){
+  const h=loadHistory();
+  const sec=$("history-sec");
+  if(h.length===0){sec.classList.add("hidden");return;}
+  sec.classList.remove("hidden");
+  renderTrend(h);
+  const rows=h.slice().reverse();
+  const shown=histExpanded?rows:rows.slice(0,5);
+  let html="<tr><th>日時</th><th>範囲</th><th style='text-align:right'>得点</th><th style='text-align:right'>正答率</th></tr>";
+  shown.forEach(s=>{
+    const rate=s.total?Math.round(s.score/s.total*100):0;
+    html+="<tr><td>"+fmtDate(s.ts)+"</td><td>"+rangeLabel(s.range)+"</td><td class='num'>"+s.score+"/"+s.total+"</td><td class='num'>"+rate+"％</td></tr>";
+  });
+  $("hist-tbl").innerHTML=html;
+  const more=$("btn-hist-more");
+  more.classList.toggle("hidden",rows.length<=5);
+  more.textContent=histExpanded?"直近5件だけ表示":"全"+rows.length+"件を表示";
+}
+
 // --- 結果画面 ---
 function result(){
+  saveSession();
   const total=log.length;
   const score=log.filter(l=>l.ok).length;
   const rate=total?Math.round(score/total*100):0;
@@ -775,6 +860,13 @@ $("btn-start").onclick=()=>start(null);
 $("btn-next").onclick=next;
 $("btn-quit").onclick=()=>{if(log.length===0){show("scr-start");}else{result();}};
 $("btn-home").onclick=()=>{show("scr-start");buildStart();};
+$("btn-hist-more").onclick=()=>{histExpanded=!histExpanded;renderHistory();};
+$("btn-clear-history").onclick=()=>{
+  if(!confirm("学習履歴を全て削除します。よろしいですか？"))return;
+  store.remove("history");
+  histExpanded=false;
+  renderHistory();
+};
 buildStart();
 </script>
 </body>
