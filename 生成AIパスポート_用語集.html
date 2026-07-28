@@ -39,8 +39,14 @@ header{
   padding:6px 13px;font-size:.82rem;cursor:pointer;user-select:none;white-space:nowrap;
 }
 .chip.sel{background:var(--ai);border-color:var(--ai);color:#fff;font-weight:700;}
-.toolbar{display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:10px;}
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:8px;flex-wrap:wrap;}
 .hits{font-size:.78rem;color:var(--ink-soft);}
+.tb-btns{display:flex;gap:6px;margin-left:auto;}
+.todo-btn{
+  border:1.5px solid var(--ai);background:var(--card);color:var(--ai);border-radius:20px;
+  padding:6px 14px;font-size:.82rem;font-family:inherit;cursor:pointer;font-weight:700;white-space:nowrap;
+}
+.todo-btn.on{background:var(--ai);color:#fff;}
 .mask-btn{
   border:1.5px solid var(--shu);background:var(--card);color:var(--shu);border-radius:20px;
   padding:6px 14px;font-size:.82rem;font-family:inherit;cursor:pointer;font-weight:700;white-space:nowrap;
@@ -57,6 +63,12 @@ header{
   border-radius:3px;padding:1px 6px;font-weight:600;flex:0 0 auto;
 }
 .gen{font-size:.76rem;color:var(--ink-soft);font-weight:400;}
+.learn-btn{
+  margin-left:auto;flex:0 0 auto;
+  background:var(--card);border:1.5px solid var(--line);border-radius:14px;
+  padding:3px 12px;font-size:.72rem;font-family:inherit;color:var(--ink-soft);cursor:pointer;
+}
+.learn-btn.on{background:var(--shu);border-color:var(--shu);color:#fff;font-weight:700;}
 .gdef{font-size:.9rem;margin-top:7px;color:var(--ink);}
 .gdef b{color:var(--shu);}
 /* 暗記モード */
@@ -73,6 +85,12 @@ body.masked .gdef.open{background:transparent;color:var(--ink);padding:0 0;}
 body.masked .gdef.open b{color:var(--shu);}
 body.masked .gdef.open::after{content:"";}
 .empty{text-align:center;color:var(--ink-soft);font-size:.9rem;padding:40px 0;}
+/* ページ間リンク */
+.xlink{margin:-2px 0 12px;text-align:right;}
+.xlink a{
+  display:inline-block;background:var(--card);border:1.5px solid var(--line);border-radius:20px;
+  padding:7px 15px;font-size:.82rem;color:var(--ai);text-decoration:none;font-weight:600;
+}
 .jump{
   position:fixed;right:14px;bottom:18px;width:44px;height:44px;border-radius:50%;
   background:var(--ink);color:#fff;border:none;font-size:1.1rem;cursor:pointer;
@@ -87,12 +105,16 @@ footer{margin-top:30px;font-size:.7rem;color:var(--ink-soft);border-top:1px soli
     <div class="title">生成AIパスポート 用語集<small>2026年シラバス対応｜赤シート式暗記対応</small></div>
     <div class="hanko">非公式</div>
   </header>
+  <nav class="xlink"><a href="生成AIパスポート_想定問題315問.html">想定問題ドリルで演習する →</a></nav>
   <div class="panel">
     <input class="search" id="q" type="search" placeholder="用語・英字・説明文から検索（例：RAG、著作権、Attention）">
     <div class="chips" id="chips"></div>
     <div class="toolbar">
       <span class="hits" id="hits"></span>
-      <button class="mask-btn" id="mask">意味を隠す</button>
+      <div class="tb-btns">
+        <button class="todo-btn" id="todo">まだだけ</button>
+        <button class="mask-btn" id="mask">意味を隠す</button>
+      </div>
     </div>
   </div>
   <div id="list"></div>
@@ -346,9 +368,48 @@ const TERMS=[
 
 const CH={1:"第1章 AIの基礎",2:"第2章 生成AIの系譜",3:"第3章 現在の動向",4:"第4章 リテラシー・法",5:"第5章 プロンプト"};
 const CH_S={1:"1章",2:"2章",3:"3章",4:"4章",5:"5章"};
-let chSel="all", kw="", masked=false;
+let chSel="all", kw="", masked=false, onlyTodo=false;
 const $=id=>document.getElementById(id);
 const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+// --- 学習データの保存層(想定問題ドリルと同一実装・同一オリジンでlocalStorageを共有) ---
+// localStorageが使えない環境ではメモリ内保持に切り替え、閲覧自体は通常どおり行える。
+const STORE_NS="gaip:v1:";
+const store=(()=>{
+  const mem={};
+  let ok=false;
+  try{
+    const t=STORE_NS+"__test__";
+    localStorage.setItem(t,"1");
+    localStorage.removeItem(t);
+    ok=true;
+  }catch(e){ok=false;}
+  return {
+    persistent:ok,
+    load(key,fallback){
+      try{
+        const raw=ok?localStorage.getItem(STORE_NS+key):mem[key];
+        if(raw==null)return fallback;
+        const v=JSON.parse(raw);
+        if(v==null||Array.isArray(v)!==Array.isArray(fallback)||typeof v!==typeof fallback)return fallback;
+        return v;
+      }catch(e){return fallback;}
+    },
+    save(key,val){
+      try{
+        const raw=JSON.stringify(val);
+        if(ok)localStorage.setItem(STORE_NS+key,raw);else mem[key]=raw;
+      }catch(e){}
+    }
+  };
+})();
+
+// 覚えたマーク: 用語名をキーに gaip:v1:terms へ保存(覚えた用語のみ保持)
+function loadMarks(){
+  const m=store.load("terms",{});
+  return (m&&typeof m==="object"&&!Array.isArray(m))?m:{};
+}
+let marks=loadMarks();
 
 function buildChips(){
   const cnt={};TERMS.forEach(t=>cnt[t.c]=(cnt[t.c]||0)+1);
@@ -368,16 +429,31 @@ function draw(){
   const q=kw.trim().toLowerCase();
   const hit=TERMS.filter(t=>{
     if(chSel!=="all"&&t.c!==+chSel)return false;
+    if(onlyTodo&&marks[t.t])return false;
     if(!q)return true;
     return (t.t+" "+(t.en||"")+" "+t.d).toLowerCase().indexOf(q)>=0;
   });
-  $("hits").textContent=hit.length+"件を表示中";
+  const learned=TERMS.filter(t=>marks[t.t]).length;
+  $("hits").textContent=hit.length+"件を表示中（覚えた"+learned+"件）";
   const list=$("list");
-  if(hit.length===0){list.innerHTML="<div class='empty'>該当する用語がありません。<br>別のキーワードでお試しください。</div>";return;}
-  list.innerHTML=hit.map(t=>
+  if(hit.length===0){
+    list.innerHTML=onlyTodo&&!q?"<div class='empty'>「まだ」の用語はありません。<br>すべて覚えました。</div>"
+      :"<div class='empty'>該当する用語がありません。<br>別のキーワードでお試しください。</div>";
+    return;
+  }
+  list.innerHTML=hit.map((t,i)=>
     "<div class='gitem'><div class='gterm'><span class='gtag'>"+CH_S[t.c]+"</span>"+
-    esc(t.t)+(t.en?"<span class='gen'>"+esc(t.en)+"</span>":"")+"</div>"+
+    esc(t.t)+(t.en?"<span class='gen'>"+esc(t.en)+"</span>":"")+
+    "<button class='learn-btn"+(marks[t.t]?" on":"")+"' data-i='"+i+"'>"+(marks[t.t]?"覚えた ✓":"覚えた?")+"</button></div>"+
     "<div class='gdef'>"+t.d+"</div></div>").join("");
+  list.querySelectorAll(".learn-btn").forEach(b=>{
+    b.onclick=()=>{
+      const name=hit[+b.dataset.i].t;
+      if(marks[name])delete marks[name];else marks[name]=1;
+      store.save("terms",marks);
+      draw();
+    };
+  });
   if(masked)bindMask();
 }
 
@@ -388,6 +464,11 @@ function bindMask(){
 }
 
 $("q").addEventListener("input",e=>{kw=e.target.value;draw();});
+$("todo").onclick=()=>{
+  onlyTodo=!onlyTodo;
+  $("todo").classList.toggle("on",onlyTodo);
+  draw();
+};
 $("mask").onclick=()=>{
   masked=!masked;
   document.body.classList.toggle("masked",masked);
