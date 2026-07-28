@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生成AIパスポート 用語集</title>
+<style>
+:root{
+  --paper:#F7F5F0;--card:#FFFFFF;--ink:#23252B;--ink-soft:#6B6E76;
+  --shu:#C9313D;--shu-soft:#FBEBEC;--ai:#2A4B7C;--ai-soft:#EBF0F7;--line:#E3E0D8;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{
+  background:var(--paper);color:var(--ink);
+  font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic Medium","Yu Gothic",sans-serif;
+  line-height:1.65;
+}
+.wrap{max-width:680px;margin:0 auto;padding:0 16px 60px;}
+header{
+  padding:22px 0 14px;border-bottom:3px double var(--ink);margin-bottom:16px;
+  display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+}
+.title{font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;font-weight:600;font-size:1.25rem;letter-spacing:.04em;}
+.title small{display:block;font-size:.72rem;color:var(--ink-soft);letter-spacing:.16em;margin-top:2px;}
+.hanko{
+  font-family:"Hiragino Mincho ProN","Yu Mincho",serif;color:var(--shu);border:2px solid var(--shu);
+  border-radius:6px;padding:2px 8px;font-size:.78rem;letter-spacing:.15em;white-space:nowrap;transform:rotate(-3deg);
+}
+/* 操作パネル */
+.panel{position:sticky;top:0;background:var(--paper);padding:8px 0 12px;z-index:10;border-bottom:1px solid var(--line);margin-bottom:14px;}
+.search{
+  width:100%;border:1.5px solid var(--line);border-radius:10px;background:var(--card);
+  padding:11px 13px;font-size:.95rem;font-family:inherit;color:var(--ink);
+}
+.search:focus{outline:none;border-color:var(--ai);}
+.chips{display:flex;gap:6px;overflow-x:auto;margin-top:9px;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
+.chip{
+  flex:0 0 auto;background:var(--card);border:1.5px solid var(--line);border-radius:20px;
+  padding:6px 13px;font-size:.82rem;cursor:pointer;user-select:none;white-space:nowrap;
+}
+.chip.sel{background:var(--ai);border-color:var(--ai);color:#fff;font-weight:700;}
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:10px;}
+.hits{font-size:.78rem;color:var(--ink-soft);}
+.mask-btn{
+  border:1.5px solid var(--shu);background:var(--card);color:var(--shu);border-radius:20px;
+  padding:6px 14px;font-size:.82rem;font-family:inherit;cursor:pointer;font-weight:700;white-space:nowrap;
+}
+.mask-btn.on{background:var(--shu);color:#fff;}
+/* 用語カード */
+.gitem{
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:14px 16px;margin-bottom:9px;
+}
+.gterm{font-size:1rem;font-weight:700;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+.gtag{
+  font-size:.66rem;letter-spacing:.08em;color:#fff;background:var(--ai);
+  border-radius:3px;padding:1px 6px;font-weight:600;flex:0 0 auto;
+}
+.gen{font-size:.76rem;color:var(--ink-soft);font-weight:400;}
+.gdef{font-size:.9rem;margin-top:7px;color:var(--ink);}
+.gdef b{color:var(--shu);}
+/* 暗記モード */
+body.masked .gdef{
+  background:var(--shu-soft);color:transparent;border-radius:6px;cursor:pointer;
+  position:relative;padding:4px 8px;margin-top:8px;
+}
+body.masked .gdef b{color:transparent;}
+body.masked .gdef::after{
+  content:"タップして表示";position:absolute;left:10px;top:4px;
+  color:var(--shu);font-size:.8rem;opacity:.75;
+}
+body.masked .gdef.open{background:transparent;color:var(--ink);padding:0 0;}
+body.masked .gdef.open b{color:var(--shu);}
+body.masked .gdef.open::after{content:"";}
+.empty{text-align:center;color:var(--ink-soft);font-size:.9rem;padding:40px 0;}
+.jump{
+  position:fixed;right:14px;bottom:18px;width:44px;height:44px;border-radius:50%;
+  background:var(--ink);color:#fff;border:none;font-size:1.1rem;cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);display:none;
+}
+footer{margin-top:30px;font-size:.7rem;color:var(--ink-soft);border-top:1px solid var(--line);padding-top:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title">生成AIパスポート 用語集<small>2026年シラバス対応｜赤シート式暗記対応</small></div>
+    <div class="hanko">非公式</div>
+  </header>
+  <div class="panel">
+    <input class="search" id="q" type="search" placeholder="用語・英字・説明文から検索（例：RAG、著作権、Attention）">
+    <div class="chips" id="chips"></div>
+    <div class="toolbar">
+      <span class="hits" id="hits"></span>
+      <button class="mask-btn" id="mask">意味を隠す</button>
+    </div>
+  </div>
+  <div id="list"></div>
+  <footer>GUGA公式シラバス(2026年適用版)および公表されている改訂内容をもとに独自作成した非公式の学習用資料です。正式な内容は公式テキスト・シラバスをご確認ください。</footer>
+</div>
+<button class="jump" id="jump">↑</button>
+<script>
+// c:章 t:用語 en:英字/別名 d:説明
+const TERMS=[
+// ===== 第1章 AIの基礎 =====
+{c:1,t:"人工知能(AI)",en:"Artificial Intelligence",d:"人間の知的な振る舞いをコンピュータで実現する技術・研究分野の総称。<b>確立した唯一の定義はない</b>点に注意。"},
+{c:1,t:"ダートマス会議",en:"Dartmouth Conference",d:"<b>1956年</b>に開催され、ジョン・マッカーシーらが「Artificial Intelligence」という語を初めて用いた会議。AI研究の出発点とされる。"},
+{c:1,t:"第一次AIブーム",en:"",d:"1950〜60年代。<b>探索と推論</b>が中心。迷路やパズルは解けたが現実の複雑な問題に対応できず冬の時代へ。"},
+{c:1,t:"第二次AIブーム",en:"",d:"1980年代。<b>エキスパートシステム</b>が中心。知識の記述・保守コスト(知識獲得のボトルネック)が壁となった。"},
+{c:1,t:"第三次AIブーム",en:"",d:"2010年代〜。<b>ディープラーニング・ビッグデータ・計算資源の向上</b>が牽引。現在の生成AIブームへ続く。"},
+{c:1,t:"AIの冬",en:"AI Winter",d:"過度な期待の反動で研究資金や社会的関心が急速に冷え込んだ時期。第一次・第二次ブームの後にそれぞれ訪れた。"},
+{c:1,t:"エキスパートシステム",en:"Expert System",d:"専門家の知識をルールとして蓄積し、推論により判断を行うシステム。第二次AIブームの中心技術。"},
+{c:1,t:"ルールベース",en:"Rule-based",d:"人間があらかじめ定義したif-then形式の規則に従って判断する方式。データから学習しない点で機械学習と異なる。"},
+{c:1,t:"機械学習",en:"Machine Learning",d:"データから規則性やパターンを自動的に見つけ出す手法の総称。AIを実現する主要な手段。"},
+{c:1,t:"教師あり学習",en:"Supervised Learning",d:"入力と<b>正解ラベル</b>の組から予測規則を学ぶ手法。代表タスクは分類と回帰。"},
+{c:1,t:"教師なし学習",en:"Unsupervised Learning",d:"正解ラベルなしでデータの構造を発見する手法。代表例は<b>クラスタリング</b>と<b>次元削減</b>。"},
+{c:1,t:"強化学習",en:"Reinforcement Learning",d:"環境との試行錯誤を通じ、<b>報酬</b>が最大になる行動方針を学習する手法。ゲームAIやロボット制御で成果を上げた。"},
+{c:1,t:"半教師あり学習",en:"Semi-supervised Learning",d:"少量のラベル付きデータと大量のラベルなしデータを併用する手法。ラベル付けコストを抑えられる。"},
+{c:1,t:"クラスタリング",en:"Clustering",d:"似たデータ同士をグループに分ける教師なし学習の代表的タスク。"},
+{c:1,t:"次元削減",en:"Dimensionality Reduction",d:"多数の特徴量を少数に圧縮する処理。可視化、計算効率の向上、ノイズ除去に役立つ。"},
+{c:1,t:"分類と回帰",en:"Classification / Regression",d:"教師あり学習の代表タスク。分類はカテゴリの予測、回帰は数値の予測。"},
+{c:1,t:"ノーフリーランチ定理",en:"No Free Lunch Theorem",d:"<b>あらゆる問題に万能に優れたアルゴリズムは存在しない</b>ことを示す定理。問題に応じた手法選択が必要となる根拠。"},
+{c:1,t:"ニューラルネットワーク",en:"Neural Network",d:"人間の脳の神経回路を模した数理モデル。ノード(人工ニューロン)と結合の重みで構成される。"},
+{c:1,t:"重み",en:"Weight",d:"入力の重要度を表す係数。<b>学習とは重みを適切に調整する過程</b>である。"},
+{c:1,t:"層(レイヤー)",en:"Layer",d:"ニューロンをまとめた処理の段。入力層・中間(隠れ)層・出力層からなる。"},
+{c:1,t:"ディープラーニング",en:"Deep Learning / 深層学習",d:"多層のニューラルネットワークを用いる機械学習手法。<b>特徴量を人手で設計せず自動獲得できる</b>点が革新的だった。"},
+{c:1,t:"特徴量",en:"Feature",d:"学習・予測に用いる入力データの性質を数値化したもの。深層学習ではこれを自動抽出する。"},
+{c:1,t:"過学習",en:"Overfitting / オーバーフィッティング",d:"訓練データに過剰適合し、<b>未知データへの精度が落ちる</b>状態。汎化性能の低下を意味する。"},
+{c:1,t:"汎化性能",en:"Generalization",d:"未知のデータに対しても正しく予測できる能力。機械学習が目指す本来の目的。"},
+{c:1,t:"ドロップアウト",en:"Dropout",d:"学習時にノードをランダムに無効化し、特定ノードへの依存を防いで過学習を抑える手法。"},
+{c:1,t:"正則化",en:"Regularization",d:"モデルの複雑さにペナルティを与え、パラメータが極端な値を取ることを抑えて過学習を防ぐ手法。"},
+{c:1,t:"転移学習",en:"Transfer Learning",d:"学習済みモデルの知識を別のタスクに再利用し、少データ・短時間で学習させる手法。"},
+{c:1,t:"学習と推論",en:"Training / Inference",d:"学習はパラメータを調整する過程、推論は学習済みモデルで結果を出す過程。両者は区別して理解する。"},
+{c:1,t:"学習データとテストデータ",en:"",d:"学習に使うデータと評価に使うデータ。分けなければ<b>汎化性能を過大評価</b>してしまう。"},
+{c:1,t:"ANI(特化型AI)",en:"Artificial Narrow Intelligence / 弱いAI",d:"特定タスクに特化したAI。顔認証やレコメンドなど<b>現在実用化されているものはほぼANI</b>。"},
+{c:1,t:"AGI(汎用人工知能)",en:"Artificial General Intelligence / 強いAI",d:"人間のように幅広い領域へ汎用的に対応できるAI。現時点では構想・研究段階の概念。"},
+{c:1,t:"ASI(人工超知能)",en:"Artificial Super Intelligence",d:"あらゆる面で人間の知能を超えるとされる仮説上のAI。"},
+{c:1,t:"シンギュラリティ",en:"Singularity / 技術的特異点",d:"技術進歩が加速し社会が非連続に変化するとされる転換点。<b>レイ・カーツワイルが2045年と予測</b>(2045年問題)。"},
+{c:1,t:"AI効果",en:"AI Effect",d:"仕組みが解明され実用化されると、それはもはや知能ではないと見なされる心理的傾向。"},
+{c:1,t:"チューリングテスト",en:"Turing Test",d:"機械が人間と区別できない受け答えをできるかで知能を判定する試験。アラン・チューリングが提唱。"},
+{c:1,t:"バイアス(偏り)",en:"Bias",d:"学習データの偏りがそのまま判断の偏りとして再現される問題。公平性の観点で重要な論点。"},
+{c:1,t:"説明可能なAI",en:"XAI / Explainable AI",d:"AIの判断根拠を人間が理解できる形で示す技術・取り組み。ブラックボックス問題への対応。"},
+{c:1,t:"ブラックボックス問題",en:"",d:"ディープラーニングの判断過程が人間に理解しづらく、根拠の検証が困難になる問題。"},
+{c:1,t:"アノテーション",en:"Annotation",d:"学習データに正解ラベルを付与する作業。教師あり学習の前提となる。"},
+{c:1,t:"データクレンジング",en:"Data Cleansing",d:"欠損値や重複、表記ゆれなどを整えてデータ品質を高める前処理。"},
+{c:1,t:"早期終了",en:"Early Stopping",d:"検証データの精度が悪化し始めた時点で学習を打ち切り、過学習を防ぐ手法。"},
+{c:1,t:"アンサンブル学習",en:"Ensemble Learning",d:"複数のモデルの予測を組み合わせて精度を高める手法。"},
+{c:1,t:"GPU",en:"Graphics Processing Unit",d:"並列計算に優れた演算装置。深層学習の実用化を支えた計算資源。"},
+{c:1,t:"ビッグデータ",en:"Big Data",d:"従来の手法では扱いきれない大量・多様・高速に生成されるデータ。第三次AIブームの土台。"},
+{c:1,t:"AIのレベル分類",en:"",d:"単純な制御プログラム、探索型、機械学習型、深層学習型といった段階でAIを整理する考え方。"},
+{c:1,t:"アシロマAI原則",en:"Asilomar AI Principles",d:"2017年のアシロマ会議でまとめられたAI開発・研究に関する23項目の指針。安全性や価値観の共有などを掲げる。<b>ダートマス会議(用語の誕生)と混同しやすい</b>。"},
+{c:1,t:"RPA",en:"Robotic Process Automation",d:"定型的なPC操作を自動化するツール。ルールに従って動作するもので、<b>AIの分類(ANI/AGI等)とは別概念</b>。"},
+{c:1,t:"オンライン学習",en:"Online Learning",d:"データが届くたびに逐次的にモデルを更新していく学習方式。まとめて学習するバッチ学習と対比される。"},
+{c:1,t:"敵対的学習",en:"Adversarial Training",d:"2つのモデルを競わせて性能を高める学習方式。GANが代表例。"},
+{c:1,t:"学習率",en:"Learning Rate",d:"学習時にパラメータをどれだけ更新するかを決めるハイパーパラメータ。大きすぎると発散し、小さすぎると学習が進まない。"},
+{c:1,t:"学習不足",en:"Underfitting / アンダーフィッティング",d:"訓練データでも未知データでも精度が低い状態。<b>過学習とは逆</b>の状態として対比で覚える。"},
+{c:1,t:"シナプス",en:"Synapse",d:"脳の神経細胞<b>同士をつなぐ結合</b>。ニューラルネットワークでは重み付きの結合に相当し、基本単位であるニューロンとは区別される。"},
+{c:1,t:"誤差逆伝播法",en:"Backpropagation",d:"出力の誤差を出力層から入力層へ逆向きに伝え、重みを更新する学習アルゴリズム。ニューラルネットワーク学習の基本手法。"},
+{c:1,t:"検証データ",en:"Validation Data",d:"学習の途中でモデルの性能を確認するためのデータ。早期終了の判断などに用いる。学習データ・テストデータと役割を区別する。"},
+// ===== 第2章 生成AIの系譜 =====
+{c:2,t:"生成AI",en:"Generative AI / ジェネレーティブAI",d:"学習した内容をもとに<b>新しいコンテンツを生成する</b>AI。分類・判別を行う識別系AIと対比される。"},
+{c:2,t:"ボルツマンマシン",en:"Boltzmann Machine",d:"確率的な学習を行う初期の生成モデル。制約付きボルツマンマシン(RBM)が深層学習の発展に寄与した。"},
+{c:2,t:"CNN",en:"Convolutional Neural Network / 畳み込みニューラルネットワーク",d:"フィルタによる畳み込み演算で<b>画像の局所的な特徴</b>を抽出するネットワーク。画像認識で広く使われる。"},
+{c:2,t:"畳み込み",en:"Convolution",d:"小さなフィルタを画像上でずらしながら適用し、エッジや模様などの特徴を捉える演算。"},
+{c:2,t:"プーリング",en:"Pooling",d:"特徴マップを縮約し、位置のずれに対する頑健性と計算効率を高める処理。"},
+{c:2,t:"VAE",en:"Variational Auto-Encoder / 変分自己符号化器",d:"<b>エンコーダ→潜在ベクトル→デコーダ</b>の構成でデータを圧縮・復元し、新しいデータを生成するモデル。"},
+{c:2,t:"潜在ベクトル",en:"Latent Vector",d:"入力の特徴を圧縮して表現した低次元のベクトル。潜在空間上の操作で新規データを生成できる。"},
+{c:2,t:"エンコーダ／デコーダ",en:"Encoder / Decoder",d:"エンコーダは入力を内部表現に変換し、デコーダは内部表現から出力を生成する。"},
+{c:2,t:"GAN",en:"Generative Adversarial Network / 敵対的生成ネットワーク",d:"<b>生成器(Generator)と識別器(Discriminator)</b>を競わせて学習し、本物らしいデータを生成するモデル。"},
+{c:2,t:"生成器／識別器",en:"Generator / Discriminator",d:"生成器は偽物を作り、識別器は本物か否かを判定する。対抗学習により生成品質が向上する。"},
+{c:2,t:"RNN",en:"Recurrent Neural Network / 回帰型ニューラルネットワーク",d:"前の状態を保持しながら処理し、文章や時系列などの<b>シーケンスデータ</b>を扱うネットワーク。"},
+{c:2,t:"LSTM",en:"Long Short-Term Memory / 長・短期記憶",d:"記憶セルとゲート機構により、RNNの弱点である<b>長期依存関係</b>を扱えるよう改良したモデル。"},
+{c:2,t:"シーケンスデータ",en:"Sequence Data",d:"文章、音声、株価など<b>順序に意味を持つ</b>データ。RNN/LSTM/Transformerが扱う対象。"},
+{c:2,t:"Transformer",en:"トランスフォーマー",d:"<b>自己注意機構</b>を中核に据え、再帰構造を用いずに系列を処理するモデル。並列計算を可能にしLLMの基盤となった。"},
+{c:2,t:"自己注意機構",en:"Self-Attention",d:"入力系列内の要素同士の関連度に基づいて重み付けする仕組み。離れた語の関係も効率的に捉えられる。"},
+{c:2,t:"Attention機構",en:"注意機構",d:"入力のどの部分に注目すべきかを動的に決める仕組み。文脈上重要な語に重みを置ける。"},
+{c:2,t:"位置エンコーディング",en:"Positional Encoding",d:"再帰構造を持たないTransformerに<b>語順(位置情報)</b>を与える仕組み。"},
+{c:2,t:"BERT",en:"Bidirectional Encoder Representations from Transformers",d:"Transformerの<b>エンコーダ型</b>モデル。MLMとNSPで事前学習し、双方向の<b>文章理解</b>に強い。"},
+{c:2,t:"MLM",en:"Masked Language Model / マスク言語モデル",d:"文中の単語を隠して予測させる事前学習タスク。BERTが用いる穴埋め方式。"},
+{c:2,t:"NSP",en:"Next Sentence Prediction",d:"2つの文が連続しているかを判定させるBERTの事前学習タスク。文同士の関係理解を学ばせる。"},
+{c:2,t:"RoBERTa／ALBERT",en:"",d:"BERTの派生モデル。RoBERTaは学習方法を改良、ALBERTはパラメータ共有により軽量化した。"},
+{c:2,t:"GPT",en:"Generative Pre-trained Transformer",d:"Transformerの<b>デコーダ型</b>モデル。自己回帰により<b>文章生成</b>に強い。OpenAIが開発。"},
+{c:2,t:"自己回帰モデル",en:"Autoregressive Model",d:"直前までの系列から次のトークンを予測し、生成した語を入力に加えて続きを生成する方式。"},
+{c:2,t:"InstructGPT",en:"",d:"GPT-3にRLHFを適用し指示追従性を高めたモデル。<b>ChatGPTの基盤</b>となった。"},
+{c:2,t:"ChatGPT",en:"",d:"OpenAIが公開した対話型生成AIサービス。自然な対話UIにより生成AIを一般に普及させた。"},
+{c:2,t:"RLHF",en:"Reinforcement Learning from Human Feedback",d:"<b>人間のフィードバックによる強化学習</b>。人間の好みを反映した応答へモデルを調整する手法。"},
+{c:2,t:"アライメント",en:"Alignment",d:"AIの出力を人間の意図や価値観に沿わせる取り組み。安全性・有用性の観点で重視される。"},
+{c:2,t:"事前学習",en:"Pre-training / プレトレーニング",d:"大量の汎用データで基礎的な言語能力を獲得させる段階。その後の調整の土台となる。"},
+{c:2,t:"ファインチューニング",en:"Fine-tuning",d:"学習済みモデルを特定用途のデータで<b>追加学習</b>させ、タスクに適応させる手法。"},
+{c:2,t:"基盤モデル",en:"Foundation Model",d:"大規模データで学習され、多様なタスクに応用できる汎用モデル。各種アプリの土台となる。"},
+{c:2,t:"ハルシネーション",en:"Hallucination / 幻覚",d:"<b>もっともらしいが事実に基づかない内容</b>を生成する現象。生成AI利用時の最大の注意点。"},
+{c:2,t:"マルチモーダル",en:"Multimodal",d:"テキスト・画像・音声など<b>複数種類のデータを統合的に扱える</b>性質。GPT-4o以降の主要モデルの特徴。"},
+{c:2,t:"自然言語処理",en:"NLP / Natural Language Processing",d:"人間が使う言語をコンピュータで処理する技術分野。翻訳、要約、質問応答などを扱う。"},
+{c:2,t:"トークン",en:"Token",d:"言語モデルが処理する単語や文字のまとまりの単位。料金や文脈長もトークン単位で扱われる。"},
+{c:2,t:"コンテキストウィンドウ",en:"Context Window / 文脈長",d:"モデルが一度に扱えるトークン数の上限。これを超えた古い情報は考慮されなくなる。"},
+{c:2,t:"パラメータ数",en:"",d:"モデルが持つ重みの数。多いほど表現力が高まる傾向がある一方、コストと応答速度が増大する。"},
+{c:2,t:"拡散モデル",en:"Diffusion Model",d:"ノイズを加えた画像から段階的にノイズを除去して画像を生成するモデル。近年の画像生成の主流。"},
+{c:2,t:"Gemini",en:"",d:"<b>Google</b>が開発したマルチモーダル対応の生成AIモデル。"},
+{c:2,t:"Claude",en:"",d:"<b>Anthropic</b>が開発した大規模言語モデル。"},
+{c:2,t:"Copilot",en:"",d:"<b>Microsoft</b>が提供する生成AIアシスタント。Officeアプリ等に統合されている。"},
+{c:2,t:"GPTs",en:"",d:"指示や参照ファイルを設定して用途特化のChatGPTを作成できる機能。"},
+{c:2,t:"Code Interpreter",en:"データ分析",d:"ファイルを読み込みコードを実行して分析やグラフ作成を行うChatGPTの機能。"},
+{c:2,t:"Codex",en:"",d:"OpenAIによるコード生成・補完に特化した系統のモデル。"},
+{c:2,t:"データセット",en:"Dataset",d:"学習や評価に用いるデータの集合。<b>質と量が性能を大きく左右する</b>。"},
+{c:2,t:"知識のカットオフ",en:"Knowledge Cutoff",d:"学習データの時点の区切り。それ以降の出来事はモデル単体では回答できない。"},
+{c:2,t:"ResNet",en:"Residual Network",d:"層を深くしても学習が進むよう工夫された画像認識向けの深層モデル。<b>生成モデルではない</b>点に注意。"},
+{c:2,t:"バギング",en:"Bagging",d:"データを復元抽出して複数モデルを作り、予測を統合するアンサンブル学習の手法。生成AIの調整手法ではない。"},
+{c:2,t:"スケーリング",en:"Scaling",d:"モデル規模・データ量・計算資源を拡大することで性能向上を図る考え方。大規模化がLLMの性能を押し上げた背景にある。"},
+{c:2,t:"Llama",en:"ラマ",d:"<b>Meta</b>が開発した大規模言語モデル。企業とモデルの対応(Google=Gemini、Anthropic=Claude、Microsoft=Copilot、Meta=Llama)で覚える。"},
+{c:2,t:"GPTの最新モデル系譜",en:"",d:"2026年シラバスでは、GPT-4以降の<b>o1・o3・o4系、GPT-4.1、GPT-5</b>や、Operator、Codex、Image Generationまでの変遷が学習範囲に含まれる。"},
+{c:2,t:"Operator",en:"",d:"ブラウザ操作などをAIが代行するOpenAIの機能。<b>AIエージェント</b>的な用途にあたる。"},
+{c:2,t:"Image Generation",en:"",d:"ChatGPT上での画像生成機能。テキスト指示から画像を作成・編集できる。"},
+{c:2,t:"DALL-E",en:"ダリ",d:"OpenAIによる画像生成モデル。テキストから画像を生成する代表例のひとつ。"},
+{c:2,t:"主要企業とモデルの対応",en:"",d:"OpenAI=GPT/ChatGPT、Google=Gemini、Anthropic=Claude、Microsoft=Copilot、Meta=Llama。<b>組み合わせを入れ替えた選択肢が頻出</b>。"},
+// ===== 第3章 現在の動向 =====
+{c:3,t:"テキスト生成AI",en:"",d:"文章の作成・要約・翻訳・質問応答などを行う生成AI。ChatGPTなどが代表例。"},
+{c:3,t:"画像生成AI",en:"",d:"テキストから画像を生成するAI。Midjourney、Stable Diffusion、DALL-Eなどが代表例。"},
+{c:3,t:"動画生成AI",en:"",d:"テキストや画像から動画を生成するAI。<b>Sora(OpenAI)、Runway、Veo(Google)</b>などが挙げられる。"},
+{c:3,t:"音声生成AI",en:"TTS / 音声合成",d:"テキストを自然な音声で読み上げる、あるいは声質を変換する技術。ナレーション作成などに使われる。"},
+{c:3,t:"音楽生成AI",en:"",d:"指定した雰囲気やジャンルに沿った楽曲を自動生成するAI。既存楽曲との類似には注意が必要。"},
+{c:3,t:"リサイズ",en:"Resize",d:"画像サイズを統一する前処理。学習の前提として画像を揃える。"},
+{c:3,t:"正規化",en:"Normalization",d:"画素値などを一定範囲に揃える前処理。学習の安定化に寄与する。"},
+{c:3,t:"データの水増し",en:"Data Augmentation / データ拡張",d:"回転・反転などで学習データを人工的に増やし、<b>汎化性能を高める</b>技術。"},
+{c:3,t:"リマスタリング",en:"Remastering",d:"古い映像や音声をAIで高品質化する処理。既存コンテンツの再生・活用に用いられる。"},
+{c:3,t:"ディープフェイク",en:"Deepfake / 深層偽造",d:"深層学習で実在人物の映像や音声を<b>本物のように偽造する技術</b>。詐欺・名誉毀損・偽情報拡散に悪用される。"},
+{c:3,t:"ディスインフォメーション",en:"Disinformation / 偽情報",d:"<b>意図的に</b>作られ拡散される虚偽情報。誤解に基づく誤情報(ミスインフォメーション)と区別される。"},
+{c:3,t:"RAG",en:"Retrieval-Augmented Generation / 検索拡張生成",d:"外部の知識ソースを<b>検索し、その結果を根拠として</b>LLMに回答を生成させる仕組み。幻覚抑制・最新情報対応・出典提示に有効。"},
+{c:3,t:"RAGの処理フロー",en:"",d:"<b>チャンク化 → 埋め込み → ベクトルDBへ格納 → 検索 → 生成</b>。順序も出題されやすい。"},
+{c:3,t:"チャンク化",en:"Chunking",d:"長い文書を検索しやすい適度な大きさに分割すること。<b>分割粒度が検索精度を左右する</b>。"},
+{c:3,t:"埋め込み",en:"Embedding / エンベディング",d:"テキストの意味を数値ベクトルに変換する処理。意味の近さを距離で測れるようにする。"},
+{c:3,t:"ベクトルデータベース",en:"Vector Database",d:"埋め込みベクトルを格納し、<b>意味の近さで検索(近傍検索)</b>できるデータベース。RAGの中核。"},
+{c:3,t:"RAGとファインチューニングの違い",en:"",d:"RAGは<b>外部知識を検索して参照</b>、ファインチューニングは<b>モデル自体を追加学習</b>。更新頻度の高い情報はRAG向き。"},
+{c:3,t:"AIエージェント",en:"AI Agent",d:"<b>計画→実行→観察</b>のループを繰り返し、外部ツールを使いながらタスクを自律的に遂行するAI。"},
+{c:3,t:"MCP",en:"Model Context Protocol",d:"AIモデルが<b>外部ツールやデータソースと連携する</b>ための標準的な仕組み。エージェントの拡張を容易にする。"},
+{c:3,t:"最小権限の原則",en:"Least Privilege",d:"必要最小限の権限のみを付与する考え方。AIエージェント導入時のリスク低減に不可欠。"},
+{c:3,t:"PoC",en:"Proof of Concept / 概念実証",d:"小規模に試行して効果とリスクを検証する取り組み。本格導入前の定石。"},
+{c:3,t:"AIガバナンス",en:"AI Governance",d:"AIの開発・利用に伴うリスクを管理し統制する仕組み。方針策定、リスク評価、監視、体制整備を含む。"},
+{c:3,t:"監査ログ",en:"Audit Log",d:"操作履歴の記録。不適切利用の把握や問題発生時の追跡を可能にする。"},
+{c:3,t:"エッジAI",en:"Edge AI",d:"クラウドではなく端末側でAI処理を行う方式。低遅延・通信量削減・プライバシー保護に利点がある。"},
+{c:3,t:"Sora",en:"",d:"<b>OpenAI</b>による動画生成AI。テキストから映像を生成する代表例。"},
+{c:3,t:"Veo",en:"",d:"<b>Google</b>による動画生成AI。SoraやRunwayと並ぶ代表例。"},
+{c:3,t:"Runway",en:"",d:"動画生成・編集に用いられる生成AIサービス。テキストや画像から映像を作成できる。"},
+{c:3,t:"Midjourney",en:"",d:"画像生成AIの代表的なサービス。テキスト指示から高品質な画像を生成する。"},
+{c:3,t:"Stable Diffusion",en:"",d:"拡散モデルを用いた画像生成AI。オープンに利用できるモデルとして広く普及した。"},
+{c:3,t:"Whisper",en:"",d:"OpenAIによる<b>音声認識(文字起こし)</b>モデル。音声を生成するのではなくテキスト化する点に注意。"},
+{c:3,t:"ミスインフォメーション",en:"Misinformation / 誤情報",d:"<b>意図せず</b>広まる誤った情報。意図的に作られるディスインフォメーション(偽情報)と対比して覚える。"},
+{c:3,t:"ファクトチェック",en:"Fact-checking",d:"情報の真偽を一次情報などに照らして検証すること。生成AIの出力利用時に不可欠な工程。"},
+// ===== 第4章 リテラシー・法律・原則 =====
+{c:4,t:"インターネットリテラシー",en:"",d:"構成要素は<b>テクノロジーの理解／情報リテラシー／セキュリティとプライバシー／デジタル市民権</b>。"},
+{c:4,t:"情報リテラシー",en:"Information Literacy",d:"情報の真偽や価値を見極め、収集・評価・活用する能力。"},
+{c:4,t:"デジタル市民権",en:"Digital Citizenship / デジタルシチズンシップ",d:"オンライン空間における権利と責任を理解し、適切に振る舞うこと。"},
+{c:4,t:"フィッシング詐欺",en:"Phishing",d:"<b>メール等</b>で正規サイトを装い、偽サイトへ誘導して情報を詐取する手口。"},
+{c:4,t:"スミッシング",en:"Smishing",d:"<b>SMS</b>を利用したフィッシング。宅配通知などを装う手口が多い。"},
+{c:4,t:"ヴィッシング",en:"Vishing",d:"<b>音声通話</b>を利用したフィッシング。AI音声合成との組み合わせが懸念される。"},
+{c:4,t:"スピアフィッシング",en:"Spear Phishing",d:"特定の組織・個人を狙い撃ちにした<b>標的型</b>フィッシング。事前調査に基づく巧妙な手口。"},
+{c:4,t:"ファーミング",en:"Pharming",d:"DNS等を改ざんし、正しいURLを入力しても偽サイトへ誘導する手口。"},
+{c:4,t:"ソーシャルエンジニアリング",en:"Social Engineering",d:"技術ではなく<b>人間の心理的な隙や信頼</b>を悪用して情報を詐取する攻撃。"},
+{c:4,t:"プレテキスト",en:"Pretexting",d:"もっともらしい口実や身分を作り上げ、相手の信頼を得て情報を聞き出す手口。"},
+{c:4,t:"ベイト攻撃",en:"Baiting",d:"無料提供などの「餌」で不正ファイルを開かせる手口。放置USBメモリを使う例も知られる。"},
+{c:4,t:"ブラックメール",en:"Blackmail / 脅迫",d:"入手した情報の暴露をちらつかせて金銭等を要求する行為。"},
+{c:4,t:"マルウェア",en:"Malware",d:"不正・有害な動作を行う悪意あるソフトウェアの総称。ウイルス、ワーム、トロイの木馬などを含む。"},
+{c:4,t:"ランサムウェア",en:"Ransomware",d:"データを<b>暗号化</b>し、復旧と引き換えに金銭を要求するマルウェア。バックアップの確保が対策の要。"},
+{c:4,t:"スパイウェア／キーロガー",en:"",d:"利用者の情報や入力内容をひそかに収集・送信する不正プログラム。"},
+{c:4,t:"情報セキュリティの3要素",en:"CIA",d:"<b>機密性(Confidentiality)・完全性(Integrity)・可用性(Availability)</b>。"},
+{c:4,t:"多要素認証",en:"MFA / Multi-Factor Authentication",d:"知識・所持・生体など<b>異なる要素を組み合わせて</b>本人確認を行う方式。"},
+{c:4,t:"VPN",en:"Virtual Private Network",d:"通信を暗号化して安全な経路を確保する技術。公衆Wi-Fi利用時の対策として有効。"},
+{c:4,t:"個人情報",en:"",d:"<b>生存する個人</b>に関する情報で、特定の個人を識別できるもの。他情報と容易に照合できるものも含む。"},
+{c:4,t:"個人識別符号",en:"",d:"マイナンバー、旅券番号、指紋データなど、それ単体で個人を識別できる符号。"},
+{c:4,t:"要配慮個人情報",en:"",d:"人種、信条、病歴、犯罪の経歴など、不当な差別や偏見が生じないよう<b>特に配慮を要する情報</b>。取得には原則本人同意が必要。"},
+{c:4,t:"匿名加工情報",en:"",d:"特定の個人を識別できず<b>復元もできない</b>ように加工した情報。一定要件下で同意なく利活用が可能。"},
+{c:4,t:"仮名加工情報",en:"",d:"他の情報と照合しない限り個人を識別できないよう加工した情報。内部分析での利活用を想定。"},
+{c:4,t:"個人情報保護委員会",en:"",d:"個人情報保護法を所管し、監督・指導を行う機関。漏えい時の報告先でもある。"},
+{c:4,t:"第三者提供",en:"",d:"個人データを他者へ提供すること。<b>原則として本人の同意が必要</b>で、提供記録の作成・保存義務がある。"},
+{c:4,t:"マスキング",en:"Masking",d:"重要な情報を伏せて特定できないようにする処理。生成AIへの入力前処理として有効。"},
+{c:4,t:"知的財産権",en:"",d:"著作権・特許権・商標権・意匠権などの総称。創作物や標識を保護する権利群。"},
+{c:4,t:"著作権",en:"",d:"思想や感情を創作的に表現した著作物を保護する権利。<b>創作と同時に自動的に発生</b>(無方式主義)。"},
+{c:4,t:"著作者人格権",en:"",d:"公表権・氏名表示権・同一性保持権からなる、著作者の人格的利益を守る権利。譲渡できない。"},
+{c:4,t:"特許権",en:"",d:"<b>新規性・進歩性・産業上の利用可能性</b>のある発明を保護する権利。出願・審査・登録が必要。"},
+{c:4,t:"商標権",en:"",d:"商品やサービスを識別する名称・ロゴマークを保護する権利。出所表示機能を守る。"},
+{c:4,t:"意匠権",en:"",d:"物品の形状や模様などの<b>デザイン</b>を保護する権利。"},
+{c:4,t:"引用の要件",en:"",d:"公表された著作物であること、出所を明示すること、<b>自らの著作物が主・引用部分が従</b>であることなど。"},
+{c:4,t:"AI生成物の著作権",en:"",d:"人間の<b>創作的寄与</b>が認められない完全なAI生成物には、原則として著作権は発生しないと考えられている。"},
+{c:4,t:"類似性と依拠性",en:"",d:"著作権侵害の判断基準。既存著作物に<b>似ており</b>、かつ<b>それに依拠して</b>作られたと認められる場合に侵害となりうる。"},
+{c:4,t:"情報解析目的の利用",en:"著作権法30条の4",d:"AI学習など情報解析のための著作物利用は一定要件下で認められる。ただし権利者の利益を不当に害する場合は除く。"},
+{c:4,t:"肖像権",en:"",d:"自己の容ぼう等をみだりに撮影・公表されない<b>人格的</b>な権利。"},
+{c:4,t:"パブリシティ権",en:"",d:"著名人の氏名や肖像が持つ<b>顧客吸引力(商業的価値)</b>を保護する権利。肖像権との対比で頻出。"},
+{c:4,t:"不正競争防止法",en:"",d:"営業秘密や周知な商品表示などを保護し、事業者間の公正な競争秩序を守る法律。"},
+{c:4,t:"営業秘密の3要件",en:"",d:"<b>秘密管理性・有用性・非公知性</b>。特許の要件(新規性・進歩性)と混同しないよう注意。"},
+{c:4,t:"限定提供データ",en:"",d:"業として特定の者に提供され、電磁的に管理された有用なデータ。ビッグデータ利活用を念頭に保護対象とされた。"},
+{c:4,t:"技術的制限手段の回避",en:"",d:"コピー防止等の仕組みを回避する装置の提供などは不正競争防止法上問題となりうる。"},
+{c:4,t:"人間中心のAI社会原則",en:"",d:"日本政府が示したAI活用の基本方針。<b>3つの基本理念</b>と<b>7つのAI社会原則</b>からなる。"},
+{c:4,t:"3つの基本理念",en:"",d:"<b>①人間の尊厳(Dignity) ②多様性と包摂(Diversity & Inclusion) ③持続可能性(Sustainability)</b>。"},
+{c:4,t:"AI社会原則(7原則)",en:"",d:"人間中心／教育・リテラシー／プライバシー確保／セキュリティ確保／公正競争確保／公平性・説明責任・透明性／イノベーション。"},
+{c:4,t:"人間中心の原則",en:"",d:"AIの利用は憲法や国際規範が保障する人権を侵してはならないとする原則。AIは人間の能力を拡張するもの。"},
+{c:4,t:"教育・リテラシーの原則",en:"",d:"AIを正しく理解し活用できるよう学びの機会を提供し、リテラシー格差を生じさせないとする原則。"},
+{c:4,t:"公平性・説明責任・透明性の原則",en:"FAT",d:"不当な差別を防ぎ、判断の根拠や結果を説明でき、検証可能な状態を確保する原則。"},
+{c:4,t:"AI利活用原則(10原則)",en:"",d:"適正利用／適正学習／連携／安全／セキュリティ／プライバシー／尊厳・自律／公平性／透明性／アカウンタビリティ。"},
+{c:4,t:"適正学習の原則",en:"",d:"AIの学習に用いるデータの<b>質</b>に留意すべきという原則。偏りや誤りが不適切な結果を招く。"},
+{c:4,t:"連携の原則",en:"",d:"AIシステム相互の連携に留意し、リスクの波及・拡大に配慮すべきという原則。"},
+{c:4,t:"尊厳・自律の原則",en:"",d:"人間の尊厳と個人の自律を尊重し、AIによる過度な介入が意思決定を損なわないようにする原則。"},
+{c:4,t:"アカウンタビリティの原則",en:"説明責任",d:"AIの利用について関係者に説明できる状態を確保し、責任の所在を明確にする原則。"},
+{c:4,t:"AI事業者ガイドライン",en:"",d:"AIの開発・提供・利用に関わる事業者が配慮すべき事項を示した指針。2026年シラバスでは<b>v1.1</b>を参照。最新は第1.2版(2026年3月公表)。"},
+{c:4,t:"AI新法",en:"人工知能関連技術の研究開発及び活用の推進に関する法律",d:"2025年成立(6月公布・同年9月全面施行)。<b>研究開発と活用の推進を基本</b>としつつリスク対応も視野に入れた基本法的な法律。罰則中心の規制法ではない。"},
+{c:4,t:"EU AI Act",en:"EU AI規則",d:"AIをリスクの程度に応じて分類し規制の強度を変える<b>リスクベースアプローチ</b>が特徴。日本のAI新法とは方向性が異なる。"},
+{c:4,t:"リスクベースアプローチ",en:"",d:"リスクの大きさに応じて規制や管理策の強度を変える考え方。"},
+{c:4,t:"プロバイダ責任制限法",en:"情報流通プラットフォーム対処法",d:"ネット上の権利侵害情報に関する事業者の責任範囲と発信者情報開示の手続を定めた法律。"},
+{c:4,t:"DoS攻撃",en:"Denial of Service",d:"大量の通信を送りつけてサーバーやサービスを停止させる攻撃。多数の機器から行うものはDDoS攻撃と呼ぶ。"},
+{c:4,t:"ブルートフォース攻撃",en:"総当たり攻撃",d:"パスワードや暗号を機械的に総当たりで試す攻撃。長く複雑なパスワードと多要素認証が対策。"},
+{c:4,t:"アドウェア",en:"Adware",d:"広告を強制的に表示するソフトウェア。金銭を要求するランサムウェアや情報を盗むスパイウェアとは目的が異なる。"},
+{c:4,t:"盗聴",en:"",d:"通信内容をひそかに傍受する行為。暗号化されていない公衆Wi-Fiなどでリスクが高い。VPNや暗号化通信が対策。"},
+{c:4,t:"悪意のあるQRコード",en:"",d:"読み取ると偽サイトへ誘導されるQRコード。<b>見た目で真偽を判別できない</b>ため、貼り替えられたコードに注意が必要。"},
+{c:4,t:"共有リンクの権限設定",en:"",d:"クラウドストレージの公開範囲やアクセス権の設定。設定の誤りによる情報漏えい事故が多く、定期的な見直しが必要。"},
+{c:4,t:"名誉毀損",en:"",d:"公然と事実を示して他人の社会的評価を低下させる行為。生成AIの出力であっても、<b>公開した利用者</b>が責任を問われうる。"},
+{c:4,t:"安全管理措置",en:"",d:"個人データの漏えい等を防ぐために事業者が講じる組織的・人的・物理的・技術的な措置。個人情報取扱事業者の義務のひとつ。"},
+{c:4,t:"利用目的の特定",en:"",d:"個人情報を取り扱う際に利用目的をできる限り特定し、通知または公表する義務。目的外利用には原則本人同意が必要。"},
+{c:4,t:"漏えい時の報告義務",en:"",d:"一定の個人データ漏えい等が生じた場合、個人情報保護委員会への報告と本人への通知が義務づけられている。改正で強化された点。"},
+{c:4,t:"フィルタリング",en:"Filtering",d:"不適切なサイトやコンテンツへのアクセスを制限する技術的対策。教育・ルール整備と組み合わせて運用する。"},
+// ===== 第5章 プロンプト =====
+{c:5,t:"言語モデル",en:"LM / Language Model",d:"単語の並びの出現しやすさを確率的に扱い、次に来る語を予測するモデル。"},
+{c:5,t:"n-gramモデル",en:"",d:"直前のn-1個の単語から次の単語の出現確率を推定する古典的な統計手法。"},
+{c:5,t:"LLM",en:"Large Language Model / 大規模言語モデル",d:"大量のテキストで事前学習された、パラメータ数の非常に大きい言語モデル。"},
+{c:5,t:"プロンプト",en:"Prompt",d:"生成AIに与える指示や入力文。設計次第で出力品質が大きく変わる。"},
+{c:5,t:"プロンプトエンジニアリング",en:"Prompt Engineering",d:"望ましい出力を得るためにプロンプトを設計・改善する取り組み。モデルを変えずに品質を高められる。"},
+{c:5,t:"プロンプトの4要素",en:"",d:"<b>Instruction(指示)／Context(背景・前提)／Input Data(入力データ)／Output Indicator(出力条件)</b>。"},
+{c:5,t:"Instruction",en:"指示",d:"モデルに実行させたいタスクの明示。例「以下の文章を200字で要約してください」。"},
+{c:5,t:"Context",en:"文脈・背景",d:"判断の前提となる背景情報や制約条件。例「読み手は新入社員」。"},
+{c:5,t:"Input Data",en:"入力データ",d:"処理の対象となる本文やデータそのもの。"},
+{c:5,t:"Output Indicator",en:"出力指示子",d:"出力の<b>形式・分量・トーン</b>の指定。例「箇条書き・300字以内・ですます調」。"},
+{c:5,t:"Zero-Shotプロンプティング",en:"",d:"例示を与えず、指示のみで回答させる方法。"},
+{c:5,t:"Few-Shotプロンプティング",en:"",d:"<b>少数の入出力例</b>を示して期待する形式や傾向を伝える方法。モデルの再学習ではない点に注意。"},
+{c:5,t:"ペルソナ設定",en:"役割設定",d:"「あなたはベテランの人事担当者です」のように話者の役割を与え、回答の視点や語彙を方向づける手法。"},
+{c:5,t:"ハイパーパラメータ",en:"Hyperparameter",d:"学習や生成の挙動を外部から設定する値。TemperatureやTop-p、学習率などが該当する。"},
+{c:5,t:"Temperature",en:"温度",d:"出力の<b>多様性・ランダム性</b>を制御するパラメータ。高いほど発散的、低いほど確定的になる。"},
+{c:5,t:"Top-p",en:"核サンプリング / Nucleus Sampling",d:"出現確率の<b>累積が上位p</b>に入る候補の中から次の語を選ぶ手法。多様性の制御に用いる。"},
+{c:5,t:"テキスト生成AIの不得意領域",en:"",d:"<b>①正確な文字数の指定 ②複雑な計算 ③最新情報の回答 ④芸術の批評</b>。頻出項目。"},
+{c:5,t:"タスク分解",en:"",d:"複雑な作業を小さなステップに分け、段階的にAIへ依頼する手法。精度と確認しやすさが向上する。"},
+{c:5,t:"対話型の進行",en:"",d:"不足情報をAIに質問させながら進める方法。認識のずれを減らせる。"},
+{c:5,t:"再現性の確保",en:"",d:"出力のばらつきを抑える工夫。Temperatureを下げ、出力条件と例示を明確にする。"},
+{c:5,t:"叩き台としての活用",en:"",d:"生成物を最終成果物ではなく下書きとして扱い、<b>妥当性は人間が判断する</b>基本姿勢。"},
+{c:5,t:"検算・外部ツール併用",en:"",d:"厳密な計算は表計算ソフト等で行い、AIには文章化を任せるなど<b>得意分野を分担</b>させる実務上の工夫。"},
+{c:5,t:"想定読者の指定",en:"",d:"「小学生にもわかるように」など読み手を指定することで、語彙と説明の粒度をコントロールする手法。Contextにあたる。"},
+{c:5,t:"文字数指定の限界",en:"",d:"LLMはトークン単位で確率的に生成するため<b>厳密な字数制御ができない</b>。目安としては機能するが、最終的な字数は人間が調整する。"},
+{c:5,t:"タスク抽出",en:"",d:"議事録などから決定事項・担当者・期限を抜き出す活用法。抽出項目と出力形式を明示すると精度が上がる。"},
+{c:5,t:"ディベート活用",en:"",d:"AIに反対意見を出させ、自説の弱点や想定問答を洗い出す使い方。結論をAIに決めさせるものではない。"},
+];
+
+const CH={1:"第1章 AIの基礎",2:"第2章 生成AIの系譜",3:"第3章 現在の動向",4:"第4章 リテラシー・法",5:"第5章 プロンプト"};
+const CH_S={1:"1章",2:"2章",3:"3章",4:"4章",5:"5章"};
+let chSel="all", kw="", masked=false;
+const $=id=>document.getElementById(id);
+const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+function buildChips(){
+  const cnt={};TERMS.forEach(t=>cnt[t.c]=(cnt[t.c]||0)+1);
+  const box=$("chips");box.innerHTML="";
+  const items=[["all","すべて",TERMS.length]];
+  for(let c=1;c<=5;c++)items.push([String(c),CH[c],cnt[c]||0]);
+  items.forEach(([k,label,n])=>{
+    const d=document.createElement("div");
+    d.className="chip"+(k===chSel?" sel":"");
+    d.textContent=label+" "+n;
+    d.onclick=()=>{chSel=k;buildChips();draw();};
+    box.appendChild(d);
+  });
+}
+
+function draw(){
+  const q=kw.trim().toLowerCase();
+  const hit=TERMS.filter(t=>{
+    if(chSel!=="all"&&t.c!==+chSel)return false;
+    if(!q)return true;
+    return (t.t+" "+(t.en||"")+" "+t.d).toLowerCase().indexOf(q)>=0;
+  });
+  $("hits").textContent=hit.length+"件を表示中";
+  const list=$("list");
+  if(hit.length===0){list.innerHTML="<div class='empty'>該当する用語がありません。<br>別のキーワードでお試しください。</div>";return;}
+  list.innerHTML=hit.map(t=>
+    "<div class='gitem'><div class='gterm'><span class='gtag'>"+CH_S[t.c]+"</span>"+
+    esc(t.t)+(t.en?"<span class='gen'>"+esc(t.en)+"</span>":"")+"</div>"+
+    "<div class='gdef'>"+t.d+"</div></div>").join("");
+  if(masked)bindMask();
+}
+
+function bindMask(){
+  document.querySelectorAll(".gdef").forEach(el=>{
+    el.onclick=()=>el.classList.toggle("open");
+  });
+}
+
+$("q").addEventListener("input",e=>{kw=e.target.value;draw();});
+$("mask").onclick=()=>{
+  masked=!masked;
+  document.body.classList.toggle("masked",masked);
+  $("mask").classList.toggle("on",masked);
+  $("mask").textContent=masked?"意味を表示":"意味を隠す";
+  draw();
+};
+window.addEventListener("scroll",()=>{$("jump").style.display=window.scrollY>500?"block":"none";});
+$("jump").onclick=()=>window.scrollTo({top:0,behavior:"smooth"});
+
+buildChips();draw();
+</script>
+</body>
+</html>
