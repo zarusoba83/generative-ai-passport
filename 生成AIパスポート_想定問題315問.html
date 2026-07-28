@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>生成AIパスポート 想定問題300問ドリル</title>
+<title>生成AIパスポート 想定問題315問ドリル</title>
 <style>
 :root{
   --paper:#F7F5F0;
@@ -172,18 +172,25 @@ table.chtbl td.num{text-align:right;font-variant-numeric:tabular-nums;}
 .wrong-item .wa{color:var(--shu);font-weight:600;}
 .wrong-item .we{color:var(--ink-soft);margin-top:4px;font-size:.82rem;}
 .hidden{display:none;}
+/* ページ間リンク */
+.xlink{margin:-6px 0 16px;text-align:right;}
+.xlink a{
+  display:inline-block;background:var(--card);border:1.5px solid var(--line);border-radius:20px;
+  padding:7px 15px;font-size:.82rem;color:var(--ai);text-decoration:none;font-weight:600;
+}
 footer{margin-top:36px;font-size:.7rem;color:var(--ink-soft);border-top:1px solid var(--line);padding-top:10px;}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="title">生成AIパスポート<small>想定問題 三〇〇問ドリル｜2026年シラバス対応</small></div>
+    <div class="title">生成AIパスポート<small>想定問題 三一五問ドリル｜2026年シラバス対応</small></div>
     <div class="hanko">非公式</div>
   </header>
 
   <!-- スタート画面 -->
   <div id="scr-start">
+    <nav class="xlink"><a href="生成AIパスポート_用語集.html">用語集で覚える →</a></nav>
     <p class="lead">出題範囲と問題数を選んで演習を始めてください。選択肢と出題順は毎回シャッフルされます。答えるたびにその場で採点・解説が表示されます。</p>
     <div class="sec-label">出題範囲</div>
     <div class="choice-grid" id="range-grid"></div>

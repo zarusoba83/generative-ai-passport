@@ -73,6 +73,12 @@ body.masked .gdef.open{background:transparent;color:var(--ink);padding:0 0;}
 body.masked .gdef.open b{color:var(--shu);}
 body.masked .gdef.open::after{content:"";}
 .empty{text-align:center;color:var(--ink-soft);font-size:.9rem;padding:40px 0;}
+/* ページ間リンク */
+.xlink{margin:-2px 0 12px;text-align:right;}
+.xlink a{
+  display:inline-block;background:var(--card);border:1.5px solid var(--line);border-radius:20px;
+  padding:7px 15px;font-size:.82rem;color:var(--ai);text-decoration:none;font-weight:600;
+}
 .jump{
   position:fixed;right:14px;bottom:18px;width:44px;height:44px;border-radius:50%;
   background:var(--ink);color:#fff;border:none;font-size:1.1rem;cursor:pointer;
@@ -87,6 +93,7 @@ footer{margin-top:30px;font-size:.7rem;color:var(--ink-soft);border-top:1px soli
     <div class="title">生成AIパスポート 用語集<small>2026年シラバス対応｜赤シート式暗記対応</small></div>
     <div class="hanko">非公式</div>
   </header>
+  <nav class="xlink"><a href="生成AIパスポート_想定問題315問.html">想定問題ドリルで演習する →</a></nav>
   <div class="panel">
     <input class="search" id="q" type="search" placeholder="用語・英字・説明文から検索（例：RAG、著作権、Attention）">
     <div class="chips" id="chips"></div>
