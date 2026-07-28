@@ -885,7 +885,8 @@ function exportData(){
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
   const d=new Date(),p=n=>(n<10?"0":"")+n;
-  a.download="生成AIパスポート学習データ_"+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+".json";
+  // 非ASCIIのファイル名はブラウザによって既定名に置き換えられることがあるためASCIIにする
+  a.download="ai-passport-study-data_"+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+".json";
   document.body.appendChild(a);
   a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},0);
