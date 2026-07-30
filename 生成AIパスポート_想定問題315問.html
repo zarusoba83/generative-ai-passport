@@ -258,6 +258,15 @@ footer{margin-top:36px;font-size:.7rem;color:var(--ink-soft);border-top:1px soli
         <button class="mini-btn danger" id="btn-clear-history">履歴を全て削除</button>
       </div>
     </div>
+    <div id="weak-sec" class="hidden">
+      <div class="sec-label">苦手問題（<span id="weak-n"></span>問）</div>
+      <div class="range-note">一度間違えて、まだ2回連続で正解していない問題です。解除すると克服済みの扱いになり（出題・誤答の記録は残ります）、再び間違えると苦手問題に戻ります。</div>
+      <div class="hist-actions">
+        <button class="mini-btn" id="btn-weak-list">一覧を表示</button>
+        <button class="mini-btn danger" id="btn-weak-clear">すべて解除</button>
+      </div>
+      <div id="weak-list"></div>
+    </div>
     <div id="hidden-sec" class="hidden">
       <div class="sec-label">非表示中の問題（<span id="hidden-n"></span>問）</div>
       <div class="range-note">理解済みとして出題対象から外している問題です。本番試験モードでは出題されます。</div>
@@ -963,8 +972,39 @@ function buildStart(){
   });
   if(count!==0&&count>avail){count=0;buildStart();}
   renderExamSec();
+  renderWeakSec();
   renderHiddenSec();
   renderHistory();
+}
+
+// --- 苦手問題一覧(個別解除) ---
+// 解除 = 2回連続正解と同じ「卒業」扱い(streakを卒業値にする)。
+// 出題回数・誤答回数の記録は残し、再び間違えればstreak=0で苦手に復帰する。
+let weakListOpen=false;
+function graduateWeak(ids){
+  const s=loadQstats();
+  ids.forEach(id=>{
+    const st=s[id];
+    if(st&&typeof st==="object")st.streak=GRAD_STREAK;
+  });
+  store.save("qstats",s);
+}
+function renderWeakSec(){
+  const wq=weakQuestions();
+  const sec=$("weak-sec");
+  if(wq.length===0){sec.classList.add("hidden");weakListOpen=false;return;}
+  sec.classList.remove("hidden");
+  $("weak-n").textContent=wq.length;
+  $("btn-weak-list").textContent=weakListOpen?"一覧を閉じる":"一覧を表示";
+  const list=$("weak-list");
+  if(!weakListOpen){list.innerHTML="";return;}
+  list.innerHTML=wq.map(q=>
+    "<div class='hq-item'><span class='hq-ch'>"+CH_SHORT[q.c]+"</span>"+
+    "<span class='hq-q'>"+escapeHtml(q.q)+"</span>"+
+    "<button class='hq-un' data-id='"+q.id+"'>解除</button></div>").join("");
+  list.querySelectorAll(".hq-un").forEach(b=>{
+    b.onclick=()=>{graduateWeak([b.dataset.id]);buildStart();};
+  });
 }
 
 // --- 非表示中の問題一覧(個別解除) ---
@@ -1517,6 +1557,12 @@ $("btn-unhide").onclick=()=>{
   buildStart();
 };
 $("btn-hidden-list").onclick=()=>{hiddenListOpen=!hiddenListOpen;renderHiddenSec();};
+$("btn-weak-list").onclick=()=>{weakListOpen=!weakListOpen;renderWeakSec();};
+$("btn-weak-clear").onclick=()=>{
+  if(!confirm("苦手問題をすべて解除します。出題・誤答の記録は残り、再び間違えると苦手問題に戻ります。よろしいですか？"))return;
+  graduateWeak(weakQuestions().map(q=>q.id));
+  buildStart();
+};
 $("btn-export").onclick=exportData;
 $("btn-import").onclick=()=>$("import-file").click();
 $("import-file").addEventListener("change",e=>{
