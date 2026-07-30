@@ -190,6 +190,10 @@ table.chtbl td.num{text-align:right;font-variant-numeric:tabular-nums;}
   text-decoration:underline;cursor:pointer;padding:6px 2px;
 }
 .mini-btn.danger{color:var(--shu);}
+.mini-btn:disabled{color:var(--ink-soft);text-decoration:none;cursor:default;}
+/* 理解済み(非表示)ボタン */
+.hide-q{display:block;margin:12px auto 0;}
+.hide-q.hidden{display:none;}
 /* データ引き継ぎ */
 .data-actions{display:flex;gap:8px;margin-bottom:8px;}
 .data-btn{
@@ -219,6 +223,7 @@ footer{margin-top:36px;font-size:.7rem;color:var(--ink-soft);border-top:1px soli
     <div class="sec-label">出題範囲</div>
     <div class="choice-grid" id="range-grid"></div>
     <div class="range-note hidden" id="weak-note">一度間違えた問題から出題します。2回連続で正解した問題は自動的にリストから外れます。</div>
+    <div class="range-note hidden" id="hidden-note">理解済みとして非表示中の問題が <span id="hidden-n"></span> 問あります（本番試験モードでは出題されます）。<button class="mini-btn" id="btn-unhide">すべて解除</button></div>
     <div class="sec-label">問題数</div>
     <div class="choice-grid cols3" id="count-grid"></div>
     <button class="btn" id="btn-start">演習を始める</button>
@@ -256,6 +261,7 @@ footer{margin-top:36px;font-size:.7rem;color:var(--ink-soft);border-top:1px soli
       <div class="expl" id="q-expl"></div>
     </div>
     <button class="btn hidden" id="btn-next">次の問題へ</button>
+    <button class="mini-btn hide-q hidden" id="btn-hide-q">✓ 理解済みにして今後出題しない</button>
     <div class="exam-nav hidden" id="exam-nav">
       <button class="btn sub" id="btn-exam-prev">← 前へ</button>
       <button class="btn" id="btn-exam-next">次へ →</button>
@@ -691,26 +697,39 @@ function updateQstat(qid,correct){
 }
 function weakQuestions(){
   const s=loadQstats();
+  const hidden=loadHidden();
   return QUESTIONS.filter(q=>{
+    if(hidden[q.id])return false;
     const st=s[q.id];
     return st&&(st.w|0)>0&&(st.streak|0)<GRAD_STREAK;
   });
 }
 
+// --- 理解済み問題の非表示 ---
+// 正解直後に「今後出題しない」を選んだ問題。通常演習・苦手演習の出題対象から
+// 外れるが、本番試験モードは本番の再現を優先して全問から出題する。
+function loadHidden(){
+  const h=store.load("hidden",{});
+  return (h&&typeof h==="object"&&!Array.isArray(h))?h:{};
+}
+
 // --- スタート画面の構築 ---
 function buildStart(){
+  const hidden=loadHidden();
+  const visible=QUESTIONS.filter(q=>!hidden[q.id]);
+  const hidN=QUESTIONS.length-visible.length;
   const counts={};
-  QUESTIONS.forEach(q=>counts[q.c]=(counts[q.c]||0)+1);
+  visible.forEach(q=>counts[q.c]=(counts[q.c]||0)+1);
   const weakN=weakQuestions().length;
   if(range==="weak"&&weakN===0)range="all";
   const rg=$("range-grid");
   rg.innerHTML="";
-  const items=[{k:"all",label:"全範囲",n:QUESTIONS.length}];
+  const items=[{k:"all",label:"全範囲",n:visible.length}];
   for(let c=1;c<=5;c++)items.push({k:String(c),label:CH_NAME[c],n:counts[c]||0});
   items.push({k:"weak",label:"苦手問題",n:weakN});
   items.forEach((it,i)=>{
     const d=document.createElement("div");
-    const dis=(it.k==="weak"&&it.n===0);
+    const dis=(it.n===0);
     d.className="chip"+(it.k===range?" sel":"")+(dis?" dis":"");
     d.style.gridColumn=(i===0)?"span 2":"";
     d.innerHTML=it.label+"<span class='n'>"+it.n+"問</span>";
@@ -718,7 +737,9 @@ function buildStart(){
     rg.appendChild(d);
   });
   $("weak-note").classList.toggle("hidden",range!=="weak");
-  const avail=(range==="all")?QUESTIONS.length:(range==="weak"?weakN:(counts[+range]||0));
+  $("hidden-note").classList.toggle("hidden",hidN===0);
+  $("hidden-n").textContent=hidN;
+  const avail=(range==="all")?visible.length:(range==="weak"?weakN:(counts[+range]||0));
   const cg=$("count-grid");
   cg.innerHTML="";
   [10,20,30,50,100,0].forEach(n=>{
@@ -745,9 +766,10 @@ function start(pool,kind){
   let src;
   if(pool){src=pool.slice();}
   else{
+    const hidden=loadHidden();
     if(range==="weak")src=weakQuestions();
-    else if(range==="all")src=QUESTIONS.slice();
-    else src=QUESTIONS.filter(q=>q.c===+range);
+    else if(range==="all")src=QUESTIONS.filter(q=>!hidden[q.id]);
+    else src=QUESTIONS.filter(q=>q.c===+range&&!hidden[q.id]);
     shuffle(src);
     src=(count===0)?src:src.slice(0,count);
   }
@@ -801,6 +823,7 @@ function renderExam(){
   $("q-expl").style.display="none";
   $("q-judge").style.display="none";
   $("btn-next").classList.add("hidden");
+  $("btn-hide-q").classList.add("hidden");
   $("exam-nav").classList.remove("hidden");
   $("btn-exam-prev").disabled=(idx===0);
   $("btn-exam-next").textContent=(idx===deck.length-1)?"回答を締め切って採点する":"次へ →";
@@ -856,6 +879,7 @@ function render(){
   $("q-expl").style.display="none";
   $("q-judge").style.display="none";
   $("btn-next").classList.add("hidden");
+  $("btn-hide-q").classList.add("hidden");
   const box=$("q-opts");
   box.innerHTML="";
   const keys=["ア","イ","ウ","エ"];
@@ -898,6 +922,26 @@ function answer(sel){
   const nb=$("btn-next");
   nb.textContent=(idx===deck.length-1)?"結果を見る":"次の問題へ";
   nb.classList.remove("hidden");
+  // 正解した問題は「今後出題しない」を選べる(通常演習のみ。answer()は通常モード専用)
+  if(correct){
+    const hb=$("btn-hide-q");
+    const qid=q.src.id;
+    if(loadHidden()[qid]){
+      hb.textContent="この問題は今後出題されません";
+      hb.disabled=true;
+    }else{
+      hb.textContent="✓ 理解済みにして今後出題しない";
+      hb.disabled=false;
+      hb.onclick=()=>{
+        const h=loadHidden();
+        h[qid]=1;
+        store.save("hidden",h);
+        hb.textContent="この問題は今後出題されません";
+        hb.disabled=true;
+      };
+    }
+    hb.classList.remove("hidden");
+  }
   $("q-prog").style.width=((idx+1)/deck.length*100)+"%";
 }
 
@@ -986,6 +1030,7 @@ function exportData(){
     data:{
       history:loadHistory(),
       qstats:loadQstats(),
+      hidden:loadHidden(),
       terms:store.load("terms",{})
     }
   };
@@ -1031,6 +1076,12 @@ function importData(file){
           }
         });
         store.save("qstats",cur);
+      }
+      // 非表示問題: 和集合
+      if(d.hidden&&typeof d.hidden==="object"&&!Array.isArray(d.hidden)){
+        const cur=loadHidden();
+        Object.keys(d.hidden).forEach(k=>{if(d.hidden[k])cur[k]=1;});
+        store.save("hidden",cur);
       }
       // 用語の暗記マーク: 和集合
       if(d.terms&&typeof d.terms==="object"&&!Array.isArray(d.terms)){
@@ -1120,6 +1171,11 @@ $("btn-quit").onclick=()=>{
 };
 $("btn-home").onclick=()=>{stopExamTimer();mode="normal";show("scr-start");buildStart();};
 $("btn-hist-more").onclick=()=>{histExpanded=!histExpanded;renderHistory();};
+$("btn-unhide").onclick=()=>{
+  if(!confirm("非表示にした問題をすべて出題対象に戻します。よろしいですか？"))return;
+  store.remove("hidden");
+  buildStart();
+};
 $("btn-export").onclick=exportData;
 $("btn-import").onclick=()=>$("import-file").click();
 $("import-file").addEventListener("change",e=>{
