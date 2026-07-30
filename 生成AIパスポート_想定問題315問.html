@@ -117,6 +117,14 @@ header{
 .opt:disabled{cursor:default;}
 .opt.is-correct{border-color:var(--shu);background:var(--ok-bg);}
 .opt.is-wrong{border-color:var(--line);background:#F1F0EC;color:var(--ink-soft);}
+/* わからないボタン */
+.giveup{
+  display:block;width:100%;margin-top:14px;
+  background:transparent;border:1.5px dashed var(--line);border-radius:10px;
+  padding:12px 14px;font-size:.9rem;color:var(--ink-soft);cursor:pointer;font-family:inherit;
+}
+.giveup:disabled{opacity:.5;cursor:default;}
+.giveup.hidden{display:none;}
 /* 採点マーク */
 .mark{
   position:absolute;right:10px;top:50%;transform:translateY(-50%);
@@ -257,6 +265,7 @@ footer{margin-top:36px;font-size:.7rem;color:var(--ink-soft);border-top:1px soli
       <div class="qnum" id="q-num"></div>
       <div class="qtext" id="q-text"></div>
       <div class="opts" id="q-opts"></div>
+      <button class="giveup hidden" id="btn-giveup">わからない（正解と解説を見る）</button>
       <div class="judge" id="q-judge"></div>
       <div class="expl" id="q-expl"></div>
     </div>
@@ -1004,6 +1013,7 @@ function renderExam(){
   $("q-judge").style.display="none";
   $("btn-next").classList.add("hidden");
   $("btn-hide-q").classList.add("hidden");
+  $("btn-giveup").classList.add("hidden");
   $("exam-nav").classList.remove("hidden");
   $("btn-exam-prev").disabled=(idx===0);
   $("btn-exam-next").textContent=(idx===deck.length-1)?"回答を締め切って採点する":"次へ →";
@@ -1060,6 +1070,9 @@ function render(){
   $("q-judge").style.display="none";
   $("btn-next").classList.add("hidden");
   $("btn-hide-q").classList.add("hidden");
+  const gu=$("btn-giveup");
+  gu.classList.remove("hidden");
+  gu.disabled=false;
   const box=$("q-opts");
   box.innerHTML="";
   const keys=["ア","イ","ウ","エ"];
@@ -1076,14 +1089,15 @@ function escapeHtml(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").repla
 const MARK_O='<svg class="mark" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14"/></svg>';
 const MARK_X='<svg class="mark" viewBox="0 0 40 40"><path d="M10 10 L30 30"/><path d="M30 10 L10 30"/></svg>';
 
-// --- 回答処理 ---
+// --- 回答処理 (sel=-1 は「わからない」= 強制不正解) ---
 function answer(sel){
   if(answered)return;
   answered=true;
   const q=deck[idx];
   const correct=(sel===q.ans);
-  log.push({c:q.c,q:q.q,your:q.opts[sel],right:q.opts[q.ans],e:q.e,ok:correct,src:q.src});
+  log.push({c:q.c,q:q.q,your:sel===-1?"（わからない）":q.opts[sel],right:q.opts[q.ans],e:q.e,ok:correct,src:q.src});
   updateQstat(q.src.id,correct);
+  $("btn-giveup").disabled=true;
   const btns=$("q-opts").querySelectorAll(".opt");
   btns.forEach((b,i)=>{
     b.disabled=true;
@@ -1337,6 +1351,7 @@ function result(){
 $("btn-start").onclick=()=>start(null);
 $("btn-exam").onclick=startExam;
 $("btn-next").onclick=next;
+$("btn-giveup").onclick=()=>answer(-1);
 $("btn-exam-prev").onclick=()=>{if(idx>0){idx--;renderExam();}};
 $("btn-exam-next").onclick=()=>{
   if(idx<deck.length-1){idx++;renderExam();}
