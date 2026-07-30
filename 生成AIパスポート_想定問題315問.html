@@ -199,9 +199,6 @@ table.chtbl td.num{text-align:right;font-variant-numeric:tabular-nums;}
 }
 .mini-btn.danger{color:var(--shu);}
 .mini-btn:disabled{color:var(--ink-soft);text-decoration:none;cursor:default;}
-/* 理解済み(非表示)ボタン */
-.hide-q{display:block;margin:12px auto 0;}
-.hide-q.hidden{display:none;}
 /* データ引き継ぎ */
 .data-actions{display:flex;gap:8px;margin-bottom:8px;}
 .data-btn{
@@ -270,7 +267,7 @@ footer{margin-top:36px;font-size:.7rem;color:var(--ink-soft);border-top:1px soli
       <div class="expl" id="q-expl"></div>
     </div>
     <button class="btn hidden" id="btn-next">次の問題へ</button>
-    <button class="mini-btn hide-q hidden" id="btn-hide-q">✓ 理解済みにして今後出題しない</button>
+    <button class="btn sub hidden" id="btn-hide-q">✓ 理解済みにして今後出題しない</button>
     <div class="exam-nav hidden" id="exam-nav">
       <button class="btn sub" id="btn-exam-prev">← 前へ</button>
       <button class="btn" id="btn-exam-next">次へ →</button>
