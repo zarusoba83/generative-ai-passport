@@ -199,6 +199,18 @@ table.chtbl td.num{text-align:right;font-variant-numeric:tabular-nums;}
 }
 .mini-btn.danger{color:var(--shu);}
 .mini-btn:disabled{color:var(--ink-soft);text-decoration:none;cursor:default;}
+/* 非表示中の問題一覧 */
+.hq-item{
+  background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:10px 12px;margin-bottom:8px;font-size:.85rem;
+  display:flex;align-items:center;gap:10px;
+}
+.hq-item .hq-ch{flex:0 0 auto;background:var(--ai);color:#fff;border-radius:4px;padding:1px 7px;font-size:.7rem;}
+.hq-item .hq-q{flex:1;line-height:1.5;}
+.hq-item .hq-un{
+  flex:0 0 auto;background:var(--card);border:1.5px solid var(--shu);color:var(--shu);
+  border-radius:8px;padding:7px 13px;font-size:.8rem;font-family:inherit;cursor:pointer;white-space:nowrap;
+}
 /* データ引き継ぎ */
 .data-actions{display:flex;gap:8px;margin-bottom:8px;}
 .data-btn{
@@ -228,7 +240,6 @@ footer{margin-top:36px;font-size:.7rem;color:var(--ink-soft);border-top:1px soli
     <div class="sec-label">出題範囲</div>
     <div class="choice-grid" id="range-grid"></div>
     <div class="range-note hidden" id="weak-note">一度間違えた問題から出題します。2回連続で正解した問題は自動的にリストから外れます。</div>
-    <div class="range-note hidden" id="hidden-note">理解済みとして非表示中の問題が <span id="hidden-n"></span> 問あります（本番試験モードでは出題されます）。<button class="mini-btn" id="btn-unhide">すべて解除</button></div>
     <div class="sec-label">問題数</div>
     <div class="choice-grid cols3" id="count-grid"></div>
     <button class="btn" id="btn-start">演習を始める</button>
@@ -243,6 +254,15 @@ footer{margin-top:36px;font-size:.7rem;color:var(--ink-soft);border-top:1px soli
         <button class="mini-btn hidden" id="btn-hist-more">全件を表示</button>
         <button class="mini-btn danger" id="btn-clear-history">履歴を全て削除</button>
       </div>
+    </div>
+    <div id="hidden-sec" class="hidden">
+      <div class="sec-label">非表示中の問題（<span id="hidden-n"></span>問）</div>
+      <div class="range-note">理解済みとして出題対象から外している問題です。本番試験モードでは出題されます。</div>
+      <div class="hist-actions">
+        <button class="mini-btn" id="btn-hidden-list">一覧を表示</button>
+        <button class="mini-btn danger" id="btn-unhide">すべて解除</button>
+      </div>
+      <div id="hidden-list"></div>
     </div>
     <div class="sec-label">学習データの引き継ぎ</div>
     <div class="data-actions">
@@ -923,8 +943,6 @@ function buildStart(){
     rg.appendChild(d);
   });
   $("weak-note").classList.toggle("hidden",range!=="weak");
-  $("hidden-note").classList.toggle("hidden",hidN===0);
-  $("hidden-n").textContent=hidN;
   const avail=(range==="all")?visible.length:(range==="weak"?weakN:(counts[+range]||0));
   const cg=$("count-grid");
   cg.innerHTML="";
@@ -937,7 +955,34 @@ function buildStart(){
     cg.appendChild(d);
   });
   if(count!==0&&count>avail){count=0;buildStart();}
+  renderHiddenSec();
   renderHistory();
+}
+
+// --- 非表示中の問題一覧(個別解除) ---
+let hiddenListOpen=false;
+function renderHiddenSec(){
+  const hidden=loadHidden();
+  const hidQs=QUESTIONS.filter(q=>hidden[q.id]);
+  const sec=$("hidden-sec");
+  if(hidQs.length===0){sec.classList.add("hidden");hiddenListOpen=false;return;}
+  sec.classList.remove("hidden");
+  $("hidden-n").textContent=hidQs.length;
+  $("btn-hidden-list").textContent=hiddenListOpen?"一覧を閉じる":"一覧を表示";
+  const list=$("hidden-list");
+  if(!hiddenListOpen){list.innerHTML="";return;}
+  list.innerHTML=hidQs.map(q=>
+    "<div class='hq-item'><span class='hq-ch'>"+CH_SHORT[q.c]+"</span>"+
+    "<span class='hq-q'>"+escapeHtml(q.q)+"</span>"+
+    "<button class='hq-un' data-id='"+q.id+"'>解除</button></div>").join("");
+  list.querySelectorAll(".hq-un").forEach(b=>{
+    b.onclick=()=>{
+      const h=loadHidden();
+      delete h[b.dataset.id];
+      store.save("hidden",h);
+      buildStart();
+    };
+  });
 }
 
 // --- 出題開始 ---
@@ -1368,6 +1413,7 @@ $("btn-unhide").onclick=()=>{
   store.remove("hidden");
   buildStart();
 };
+$("btn-hidden-list").onclick=()=>{hiddenListOpen=!hiddenListOpen;renderHiddenSec();};
 $("btn-export").onclick=exportData;
 $("btn-import").onclick=()=>$("import-file").click();
 $("import-file").addEventListener("change",e=>{
