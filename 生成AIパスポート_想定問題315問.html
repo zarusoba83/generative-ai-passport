@@ -198,6 +198,13 @@ table.chtbl td.num{text-align:right;font-variant-numeric:tabular-nums;}
   padding:14px;margin-bottom:10px;font-size:.86rem;
 }
 .wrong-item .wq{font-weight:600;margin-bottom:6px;}
+.wi-hide{
+  display:block;margin:12px 0 0 auto;
+  background:var(--card);border:1.5px solid var(--line);border-radius:8px;
+  padding:8px 14px;font-size:.78rem;font-family:inherit;color:var(--ink-soft);
+  cursor:pointer;white-space:nowrap;
+}
+.wi-hide.on{border-color:var(--shu);color:var(--shu);font-weight:700;}
 .wrong-item .wa{color:var(--shu);font-weight:600;}
 .wrong-item .we{color:var(--ink-soft);margin-top:4px;font-size:.82rem;}
 .hidden{display:none;}
@@ -1080,6 +1087,21 @@ function loadHidden(){
   const h=store.load("hidden",{});
   return (h&&typeof h==="object"&&!Array.isArray(h))?h:{};
 }
+function hideBtnLabel(qid){
+  return loadHidden()[qid]?"今後出題しません（解除する）":"✓ 理解済みにして今後出題しない";
+}
+// 答え合わせ一覧の理解済みトグル。押すたびに出題対象への出し入れを切り替える
+function bindHideButtons(root){
+  root.querySelectorAll(".wi-hide").forEach(b=>{
+    b.onclick=()=>{
+      const h=loadHidden(),qid=b.dataset.id;
+      if(h[qid])delete h[qid];else h[qid]=1;
+      store.save("hidden",h);
+      b.classList.toggle("on",!!loadHidden()[qid]);
+      b.textContent=hideBtnLabel(qid);
+    };
+  });
+}
 
 // --- スタート画面の構築 ---
 function buildStart(){
@@ -1787,7 +1809,8 @@ function result(){
 
   const wrong=log.filter(l=>!l.ok);
   const wl=$("r-wrong");
-  const itemHtml=(w,head)=>
+  // hideBtn=true で「理解済みにして今後出題しない」トグルを付ける(答え合わせ一覧用)
+  const itemHtml=(w,head,hideBtn)=>
     "<div class='wrong-item'><div class='wq'>"+head+escapeHtml(w.q)+"</div>"+
     (w.src.t==="count"&&Array.isArray(w.src.items)?
       "<div style='color:var(--ink-soft);font-size:.82rem;margin-bottom:6px;line-height:1.7'>"+
@@ -1795,15 +1818,18 @@ function result(){
     "<div>正解：<span class='wa'>"+escapeHtml(w.right)+"</span></div>"+
     "<div style='color:var(--ink-soft)'>あなたの回答："+escapeHtml(w.your)+"</div>"+
     "<div class='we'>"+(w.src.t==="count"&&Array.isArray(w.src.items)?countMarks(w.src.items)+"　":"")+w.e+"</div>"+
-    (w.src.x?"<div class='wx'><b>ほかの選択肢</b>　"+w.src.x+"</div>":"")+"</div>";
+    (w.src.x?"<div class='wx'><b>ほかの選択肢</b>　"+w.src.x+"</div>":"")+
+    (hideBtn?"<button class='wi-hide"+(loadHidden()[w.src.id]?" on":"")+"' data-id='"+w.src.id+"'>"+
+      hideBtnLabel(w.src.id)+"</button>":"")+"</div>";
   if(mode==="exam"){
-    // 本番モードは正解も含む全問を出題順に振り返る
+    // 本番モードは正解も含む全問を出題順に振り返る。各問をその場で理解済みにできる
     $("r-wrong-label").textContent="答え合わせ（全"+total+"問）";
     wl.innerHTML=log.map((w,i)=>{
       const mark="<span style='font-family:\"Hiragino Mincho ProN\",\"Yu Mincho\",serif;color:"+
         (w.ok?"var(--shu)":"var(--ink-soft)")+"'>"+(w.ok?"○":"×")+"</span>";
-      return itemHtml(w,mark+" 問"+(i+1)+"　");
+      return itemHtml(w,mark+" 問"+(i+1)+"　",true);
     }).join("");
+    bindHideButtons(wl);
   }else if(wrong.length===0){
     $("r-wrong-label").textContent="間違えた問題";
     wl.innerHTML="<p style='font-size:.9rem;color:var(--ink-soft)'>全問正解です。この調子で範囲を広げていきましょう。</p>";
