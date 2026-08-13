@@ -102,6 +102,16 @@ header{
   font-size:.85rem;color:var(--shu);letter-spacing:.12em;font-weight:700;margin-bottom:8px;
 }
 .qtext{font-size:1.02rem;font-weight:600;margin-bottom:18px;}
+/* 問題形式の拡張(いくつあるか: 箇条リスト / 複数選択: 注記) */
+.qitems{
+  border:1px solid var(--line);border-radius:10px;background:var(--paper);
+  padding:10px 14px;margin:-6px 0 16px;font-size:.92rem;
+}
+.qitems .qi{padding:4px 0;display:flex;gap:8px;line-height:1.5;}
+.qitems .qi .qn{color:var(--ai);font-weight:700;flex:0 0 auto;}
+.qnote{font-size:.8rem;color:var(--shu);margin:-8px 0 12px;font-weight:600;}
+#btn-multi-ok{margin-top:14px;}
+.qitems.hidden,.qnote.hidden{display:none;}
 .opts{display:flex;flex-direction:column;gap:10px;}
 .opt{
   position:relative;
@@ -293,7 +303,10 @@ footer{margin-top:36px;font-size:.7rem;color:var(--ink-soft);border-top:1px soli
     <div class="qcard">
       <div class="qnum" id="q-num"></div>
       <div class="qtext" id="q-text"></div>
+      <div class="qitems hidden" id="q-items"></div>
+      <div class="qnote hidden" id="q-note"></div>
       <div class="opts" id="q-opts"></div>
+      <button class="btn hidden" id="btn-multi-ok">回答を確定する</button>
       <button class="giveup hidden" id="btn-giveup">わからない（正解と解説を見る）</button>
       <div class="judge" id="q-judge"></div>
       <div class="expl" id="q-expl"></div>
@@ -328,9 +341,14 @@ footer{margin-top:36px;font-size:.7rem;color:var(--ink-soft);border-top:1px soli
 </div>
 
 <script>
-// id:問題ID c:章(1-5) q:問題 o:選択肢4つ a:正解index(0始まり) e:解説
+// id:問題ID c:章(1-5) q:問題 o:選択肢4つ a:正解index(0始まり) e:解説 x:ほかの選択肢の解説
 // ※idは学習履歴(localStorage)のキー。一度振ったidは変更しないこと。
-//   問題を追加するときは未使用の連番(q496〜)を振る。削除・並べ替えをしても既存のidは維持する。
+//   問題を追加するときは未使用の連番を振る。削除・並べ替えをしても既存のidは維持する。
+// 問題形式(t)。tなし=単一選択(四択)。
+//   t:"multi" … 複数選択。aは正解indexの昇順配列(例 a:[0,2])。完全一致のみ正解。
+//   t:"count" … いくつあるか。items:[{s:"記述",ok:true/false},…](4〜7個)を提示し、
+//               o:["1つ","2つ",…]の数の四択(シャッフルされない)から選ぶ。aは単一index。
+//               ok=trueの個数とo[a]の数字は一致させること(検証スクリプトで機械チェック)。
 const QUESTIONS=[
 // ===== 第1章 AI(人工知能) =====
 {id:"q001",c:1,q:"「人工知能(AI)」という言葉が初めて用いられた1956年の会議はどれか。",o:["ダートマス会議","ソルベー会議","ブレトンウッズ会議","アシロマ会議"],a:0,e:"1956年の<b>ダートマス会議</b>でジョン・マッカーシーらがArtificial Intelligenceという用語を初めて使用した。",x:"ソルベー会議は物理学、ブレトンウッズ会議は国際通貨体制の会議。アシロマ会議は2017年にAI開発の指針「アシロマAI原則」がまとめられた会議で、AIとは関係するが用語の誕生とは無関係。"},
@@ -1033,13 +1051,31 @@ function renderHiddenSec(){
   });
 }
 
+// --- 問題形式のヘルパー ---
+function circled(i){return i<20?String.fromCharCode(0x2460+i):(i+1)+".";}
+function setEq(a,b){return a.length===b.length&&a.every(v=>b.includes(v));}
+function joinOpts(q,idxs){return idxs.map(i=>q.opts[i]).join("、");}
+function rightText(q){return Array.isArray(q.ans)?joinOpts(q,q.ans):q.opts[q.ans];}
+function countMarks(items){
+  return "<span style='letter-spacing:.05em'>"+items.map((it,i)=>
+    "<span style='white-space:nowrap;margin-right:10px'>"+circled(i)+(it.ok?"<b>○</b>":"×")+"</span>").join("")+"</span>";
+}
+// 選択肢の並びを表す配列(order: 表示位置→元index)からデッキ項目を作る
+function deckItem(q,order){
+  if(q.t==="multi"){
+    return {c:q.c,q:q.q,e:q.e,t:"multi",opts:order.map(x=>q.o[x]),
+            ans:q.a.map(orig=>order.indexOf(orig)).sort((x,y)=>x-y),src:q};
+  }
+  if(q.t==="count"){
+    // 数の選択肢は順序に意味があるためシャッフルしない
+    return {c:q.c,q:q.q,e:q.e,t:"count",items:q.items,opts:q.o.slice(),ans:q.a,src:q};
+  }
+  return {c:q.c,q:q.q,e:q.e,opts:order.map(x=>q.o[x]),ans:order.indexOf(q.a),src:q};
+}
+
 // --- 出題開始 ---
 function makeDeck(src){
-  return src.map(q=>{
-    const pairs=q.o.map((t,i)=>({t:t,ok:i===q.a}));
-    shuffle(pairs);
-    return {c:q.c,q:q.q,e:q.e,opts:pairs.map(p=>p.t),ans:pairs.findIndex(p=>p.ok),src:q};
-  });
+  return src.map(q=>deckItem(q,shuffle([0,1,2,3])));
 }
 function start(pool,kind){
   let src;
@@ -1115,8 +1151,14 @@ function resumeExam(){
     if(!q)return; // 問題の改訂で消えたidはスキップ
     let order=Array.isArray(s.opts[i])?s.opts[i]:null;
     if(!order||order.length!==4||order.some(x=>!Number.isInteger(x)||x<0||x>3))order=[0,1,2,3];
-    newDeck.push({c:q.c,q:q.q,e:q.e,opts:order.map(x=>q.o[x]),ans:order.indexOf(q.a),src:q});
-    newAns.push(Number.isInteger(s.answers[i])?s.answers[i]:null);
+    newDeck.push(deckItem(q,order));
+    const a=s.answers[i];
+    if(Array.isArray(a)){
+      const arr=a.filter(v=>Number.isInteger(v)&&v>=0&&v<4);
+      newAns.push(q.t==="multi"&&arr.length?arr:null);
+    }else{
+      newAns.push(Number.isInteger(a)?a:null);
+    }
   });
   if(newDeck.length===0){store.remove("exam");buildStart();return;}
   stopExamTimer();
@@ -1147,9 +1189,18 @@ function abortExam(){
   deck.forEach((q,i)=>{
     const sel=examAnswers[i];
     if(sel==null)return;
-    const ok=(sel===q.ans);
+    let ok,your;
+    if(q.t==="multi"){
+      const arr=Array.isArray(sel)?sel:[];
+      if(arr.length===0)return;
+      ok=setEq(arr,q.ans);
+      your=joinOpts(q,arr);
+    }else{
+      ok=(sel===q.ans);
+      your=q.opts[sel];
+    }
     updateQstat(q.src.id,ok);
-    log.push({c:q.c,q:q.q,your:q.opts[sel],right:q.opts[q.ans],e:q.e,ok:ok,src:q.src});
+    log.push({c:q.c,q:q.q,your:your,right:rightText(q),e:q.e,ok:ok,src:q.src});
   });
   if(log.length===0){show("scr-start");buildStart();return;}
   result();
@@ -1190,11 +1241,13 @@ function renderExam(){
   $("q-prog").style.width=(answeredN/deck.length*100)+"%";
   $("q-num").textContent="問 "+(idx+1);
   $("q-text").textContent=q.q;
+  renderQuestionExtras(q);
   $("q-expl").style.display="none";
   $("q-judge").style.display="none";
   $("btn-next").classList.add("hidden");
   $("btn-hide-q").classList.add("hidden");
   $("btn-giveup").classList.add("hidden");
+  $("btn-multi-ok").classList.add("hidden");
   $("exam-nav").classList.remove("hidden");
   $("btn-exam-prev").disabled=(idx===0);
   $("btn-exam-next").textContent=(idx===deck.length-1)?"回答を締め切って採点する":"次へ →";
@@ -1204,10 +1257,22 @@ function renderExam(){
   box.innerHTML="";
   const keys=["ア","イ","ウ","エ"];
   q.opts.forEach((t,i)=>{
+    const cur=examAnswers[idx];
+    const picked=(q.t==="multi")?(Array.isArray(cur)&&cur.includes(i)):(cur===i);
     const b=document.createElement("button");
-    b.className="opt"+(examAnswers[idx]===i?" picked":"");
+    b.className="opt"+(picked?" picked":"");
     b.innerHTML="<span class='k'>"+keys[i]+"</span>"+escapeHtml(t);
-    b.onclick=()=>{examAnswers[idx]=i;renderExam();};
+    b.onclick=()=>{
+      if(q.t==="multi"){
+        // 複数選択: タップでトグル。選択なしは未回答扱い(null)
+        let arr=Array.isArray(examAnswers[idx])?examAnswers[idx].slice():[];
+        arr=arr.includes(i)?arr.filter(v=>v!==i):arr.concat([i]).sort((a,b2)=>a-b2);
+        examAnswers[idx]=arr.length?arr:null;
+      }else{
+        examAnswers[idx]=i;
+      }
+      renderExam();
+    };
     box.appendChild(b);
   });
 }
@@ -1226,9 +1291,17 @@ function examSubmit(auto,skipConfirm){
   sessDur=Math.round((EXAM_MIN*60*1000-Math.max(0,examDeadline-Date.now()))/1000);
   log=deck.map((q,i)=>{
     const sel=examAnswers[i];
-    const ok=(sel===q.ans);
+    let ok,your;
+    if(q.t==="multi"){
+      const arr=Array.isArray(sel)?sel:[];
+      ok=arr.length>0&&setEq(arr,q.ans);
+      your=arr.length?joinOpts(q,arr):"（未回答）";
+    }else{
+      ok=(sel===q.ans);
+      your=sel==null?"（未回答）":q.opts[sel];
+    }
     updateQstat(q.src.id,ok);
-    return {c:q.c,q:q.q,your:sel==null?"（未回答）":q.opts[sel],right:q.opts[q.ans],e:q.e,ok:ok,src:q.src};
+    return {c:q.c,q:q.q,your:your,right:rightText(q),e:q.e,ok:ok,src:q.src};
   });
   result();
 }
@@ -1239,8 +1312,24 @@ function show(id){
 }
 
 // --- 問題描画 ---
+// 形式ごとの付加表示(いくつあるか: 箇条リスト / 複数選択: 注記)。通常・本番で共用。
+function renderQuestionExtras(q){
+  const il=$("q-items"),nt=$("q-note");
+  if(q.t==="count"&&Array.isArray(q.items)){
+    il.innerHTML=q.items.map((it,i)=>
+      "<div class='qi'><span class='qn'>"+circled(i)+"</span><span>"+escapeHtml(it.s)+"</span></div>").join("");
+    il.classList.remove("hidden");
+  }else{
+    il.classList.add("hidden");
+    il.innerHTML="";
+  }
+  nt.classList.toggle("hidden",q.t!=="multi");
+  if(q.t==="multi")nt.textContent="あてはまるものをすべて選んでください（複数選択）";
+}
+let multiSel=[]; // 通常演習での複数選択の選択状態
 function render(){
   answered=false;
+  multiSel=[];
   const q=deck[idx];
   $("exam-nav").classList.add("hidden");
   $("q-timer").classList.add("hidden");
@@ -1251,10 +1340,14 @@ function render(){
   $("q-prog").style.width=(idx/deck.length*100)+"%";
   $("q-num").textContent="問 "+(idx+1);
   $("q-text").textContent=q.q;
+  renderQuestionExtras(q);
   $("q-expl").style.display="none";
   $("q-judge").style.display="none";
   $("btn-next").classList.add("hidden");
   $("btn-hide-q").classList.add("hidden");
+  const mok=$("btn-multi-ok");
+  if(q.t==="multi"){mok.classList.remove("hidden");mok.disabled=true;}
+  else mok.classList.add("hidden");
   const gu=$("btn-giveup");
   gu.classList.remove("hidden");
   gu.disabled=false;
@@ -1265,7 +1358,16 @@ function render(){
     const b=document.createElement("button");
     b.className="opt";
     b.innerHTML="<span class='k'>"+keys[i]+"</span>"+escapeHtml(t);
-    b.onclick=()=>answer(i);
+    b.onclick=()=>{
+      if(q.t==="multi"){
+        if(answered)return;
+        b.classList.toggle("picked");
+        multiSel=multiSel.includes(i)?multiSel.filter(v=>v!==i):multiSel.concat([i]);
+        $("btn-multi-ok").disabled=(multiSel.length===0);
+      }else{
+        answer(i);
+      }
+    };
     box.appendChild(b);
   });
 }
@@ -1277,24 +1379,47 @@ const MARK_X='<svg class="mark" viewBox="0 0 40 40"><path d="M10 10 L30 30"/><pa
 // --- 回答処理 (sel=-1 は「わからない」= 強制不正解) ---
 function answer(sel){
   if(answered)return;
-  answered=true;
   const q=deck[idx];
-  const correct=(sel===q.ans);
-  log.push({c:q.c,q:q.q,your:sel===-1?"（わからない）":q.opts[sel],right:q.opts[q.ans],e:q.e,ok:correct,src:q.src});
+  if(q.t==="multi"&&sel!==-1)return; // 複数選択は「回答を確定する」経由(わからないは可)
+  answered=true;
+  const giveup=(sel===-1);
+  const correct=!giveup&&(sel===q.ans);
+  log.push({c:q.c,q:q.q,your:giveup?"（わからない）":q.opts[sel],right:rightText(q),e:q.e,ok:correct,src:q.src});
   updateQstat(q.src.id,correct);
+  finishAnswer(q,correct,giveup?[]:[sel]);
+}
+// 複数選択の確定
+function answerMulti(){
+  if(answered)return;
+  const q=deck[idx];
+  if(q.t!=="multi"||multiSel.length===0)return;
+  answered=true;
+  const sel=multiSel.slice().sort((a,b)=>a-b);
+  const correct=setEq(sel,q.ans);
+  log.push({c:q.c,q:q.q,your:joinOpts(q,sel),right:rightText(q),e:q.e,ok:correct,src:q.src});
+  updateQstat(q.src.id,correct);
+  finishAnswer(q,correct,sel);
+}
+// 採点結果の表示(全形式共通)。selArr=選んだ表示位置の配列
+function finishAnswer(q,correct,selArr){
   $("btn-giveup").disabled=true;
+  $("btn-multi-ok").disabled=true;
+  const ansArr=Array.isArray(q.ans)?q.ans:[q.ans];
   const btns=$("q-opts").querySelectorAll(".opt");
   btns.forEach((b,i)=>{
     b.disabled=true;
-    if(i===q.ans){b.classList.add("is-correct");b.insertAdjacentHTML("beforeend",MARK_O);}
-    else if(i===sel){b.classList.add("is-wrong");b.insertAdjacentHTML("beforeend",MARK_X);}
+    b.classList.remove("picked");
+    if(ansArr.includes(i)){b.classList.add("is-correct");b.insertAdjacentHTML("beforeend",MARK_O);}
+    else if(selArr.includes(i)){b.classList.add("is-wrong");b.insertAdjacentHTML("beforeend",MARK_X);}
     else{b.classList.add("is-wrong");}
   });
   const j=$("q-judge");
   j.textContent=correct?"正 解":"不 正 解";
   j.style.color=correct?"var(--shu)":"var(--ink-soft)";
   j.style.display="block";
-  let ex="<b>解説</b>　"+q.e;
+  let ex="<b>解説</b>　";
+  if(q.t==="count"&&Array.isArray(q.items))ex+="<div style='margin:2px 0 8px'>"+countMarks(q.items)+"</div>";
+  ex+=q.e;
   if(q.src.x)ex+="<div class='xpl'><b>ほかの選択肢</b>　"+q.src.x+"</div>";
   $("q-expl").innerHTML=ex;
   $("q-expl").style.display="block";
@@ -1505,9 +1630,13 @@ function result(){
   const wl=$("r-wrong");
   const itemHtml=(w,head)=>
     "<div class='wrong-item'><div class='wq'>"+head+escapeHtml(w.q)+"</div>"+
+    (w.src.t==="count"&&Array.isArray(w.src.items)?
+      "<div style='color:var(--ink-soft);font-size:.82rem;margin-bottom:6px;line-height:1.7'>"+
+      w.src.items.map((it,i)=>"<span style='white-space:nowrap;margin-right:10px'>"+circled(i)+escapeHtml(it.s)+"</span>").join("")+"</div>":"")+
     "<div>正解：<span class='wa'>"+escapeHtml(w.right)+"</span></div>"+
     "<div style='color:var(--ink-soft)'>あなたの回答："+escapeHtml(w.your)+"</div>"+
-    "<div class='we'>"+w.e+"</div>"+(w.src.x?"<div class='wx'><b>ほかの選択肢</b>　"+w.src.x+"</div>":"")+"</div>";
+    "<div class='we'>"+(w.src.t==="count"&&Array.isArray(w.src.items)?countMarks(w.src.items)+"　":"")+w.e+"</div>"+
+    (w.src.x?"<div class='wx'><b>ほかの選択肢</b>　"+w.src.x+"</div>":"")+"</div>";
   if(mode==="exam"){
     // 本番モードは正解も含む全問を出題順に振り返る
     $("r-wrong-label").textContent="答え合わせ（全"+total+"問）";
@@ -1543,6 +1672,7 @@ $("btn-exam-pause").onclick=pauseExam;
 $("btn-exam-abort").onclick=abortExam;
 $("btn-next").onclick=next;
 $("btn-giveup").onclick=()=>answer(-1);
+$("btn-multi-ok").onclick=answerMulti;
 $("btn-exam-prev").onclick=()=>{if(idx>0){idx--;renderExam();}};
 $("btn-exam-next").onclick=()=>{
   if(idx<deck.length-1){idx++;renderExam();}
