@@ -219,12 +219,13 @@ table.chtbl td.num{text-align:right;font-variant-numeric:tabular-nums;}
 .mini-btn.danger{color:var(--shu);}
 .mini-btn:disabled{color:var(--ink-soft);text-decoration:none;cursor:default;}
 /* 苦手問題の章別分布(円グラフ) */
-.pie-wrap{display:flex;align-items:center;gap:16px;padding:4px 6px;}
-.pie-wrap svg{flex:0 0 auto;display:block;}
-.pie-legend{flex:1;min-width:0;font-size:.82rem;display:flex;flex-direction:column;gap:5px;}
-.pie-legend .pl{display:flex;align-items:center;gap:7px;}
-.pie-legend .sw{width:12px;height:12px;border-radius:3px;flex:0 0 auto;}
-.pie-legend .pn{margin-left:auto;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:6px;}
+.pie-wrap{display:flex;align-items:center;gap:14px;padding:4px 2px;}
+/* 履歴グラフ用の .trend-box svg{width:100%} を上書きし、円は固定サイズで表示する */
+.trend-box .pie-wrap svg{flex:0 0 auto;display:block;width:150px;height:150px;}
+.pie-legend{flex:1;min-width:0;font-size:.8rem;display:flex;flex-direction:column;gap:6px;}
+.pie-legend .pl{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;}
+.pie-legend .sw{width:11px;height:11px;border-radius:3px;flex:0 0 auto;align-self:center;}
+.pie-legend .pn{margin-left:auto;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap;}
 /* 非表示中の問題一覧 */
 .hq-item{
   background:var(--card);border:1px solid var(--line);border-radius:10px;
@@ -1164,8 +1165,9 @@ function renderWeakPie(wq){
   wq.forEach(q=>cnt[q.c]=(cnt[q.c]||0)+1);
   const total=wq.length;
   const chapters=[1,2,3,4,5].filter(c=>cnt[c]);
+  // 描画は132四方の座標系。実際の表示サイズはCSS(.pie-wrap svg)で指定する
   const R=58,CX=66,CY=66;
-  let svg="<svg width='132' height='132' viewBox='0 0 132 132' role='img' aria-label='苦手問題の章別分布'>";
+  let svg="<svg viewBox='0 0 132 132' role='img' aria-label='苦手問題の章別分布'>";
   if(chapters.length===1){
     svg+="<circle cx='"+CX+"' cy='"+CY+"' r='"+R+"' fill='"+CH_COLORS[chapters[0]]+"'/>";
   }else{
@@ -1177,7 +1179,7 @@ function renderWeakPie(wq){
       const x2=CX+R*Math.cos(a2),y2=CY+R*Math.sin(a2);
       svg+="<path d='M"+CX+" "+CY+" L"+x1.toFixed(2)+" "+y1.toFixed(2)+
         " A"+R+" "+R+" 0 "+(frac>0.5?1:0)+" 1 "+x2.toFixed(2)+" "+y2.toFixed(2)+
-        " Z' fill='"+CH_COLORS[c]+"' stroke='#FFFFFF' stroke-width='1.5'/>";
+        " Z' fill='"+CH_COLORS[c]+"' stroke='#FFFFFF' stroke-width='2'/>";
       angle=a2;
     });
   }
