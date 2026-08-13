@@ -211,6 +211,13 @@ table.chtbl td.num{text-align:right;font-variant-numeric:tabular-nums;}
 }
 .mini-btn.danger{color:var(--shu);}
 .mini-btn:disabled{color:var(--ink-soft);text-decoration:none;cursor:default;}
+/* 苦手問題の章別分布(円グラフ) */
+.pie-wrap{display:flex;align-items:center;gap:16px;padding:4px 6px;}
+.pie-wrap svg{flex:0 0 auto;display:block;}
+.pie-legend{flex:1;min-width:0;font-size:.82rem;display:flex;flex-direction:column;gap:5px;}
+.pie-legend .pl{display:flex;align-items:center;gap:7px;}
+.pie-legend .sw{width:12px;height:12px;border-radius:3px;flex:0 0 auto;}
+.pie-legend .pn{margin-left:auto;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:6px;}
 /* 非表示中の問題一覧 */
 .hq-item{
   background:var(--card);border:1px solid var(--line);border-radius:10px;
@@ -271,6 +278,7 @@ footer{margin-top:36px;font-size:.7rem;color:var(--ink-soft);border-top:1px soli
     <div id="weak-sec" class="hidden">
       <div class="sec-label">苦手問題（<span id="weak-n"></span>問）</div>
       <div class="range-note">一度間違えて、まだ2回連続で正解していない問題です。解除すると克服済みの扱いになり（出題・誤答の記録は残ります）、再び間違えると苦手問題に戻ります。</div>
+      <div class="trend-box" id="weak-chart"></div>
       <div class="hist-actions">
         <button class="mini-btn" id="btn-weak-list">一覧を表示</button>
         <button class="mini-btn danger" id="btn-weak-clear">すべて解除</button>
@@ -1127,12 +1135,43 @@ function graduateWeak(ids){
   });
   store.save("qstats",s);
 }
+// 章別分布の円グラフ(既存の墨・藍・朱の意匠に合わせた5色)
+const CH_COLORS={1:"#2A4B7C",2:"#C9313D",3:"#5E7C56",4:"#B08433",5:"#6B6E76"};
+function renderWeakPie(wq){
+  const cnt={};
+  wq.forEach(q=>cnt[q.c]=(cnt[q.c]||0)+1);
+  const total=wq.length;
+  const chapters=[1,2,3,4,5].filter(c=>cnt[c]);
+  const R=58,CX=66,CY=66;
+  let svg="<svg width='132' height='132' viewBox='0 0 132 132' role='img' aria-label='苦手問題の章別分布'>";
+  if(chapters.length===1){
+    svg+="<circle cx='"+CX+"' cy='"+CY+"' r='"+R+"' fill='"+CH_COLORS[chapters[0]]+"'/>";
+  }else{
+    let angle=-Math.PI/2;
+    chapters.forEach(c=>{
+      const frac=cnt[c]/total;
+      const a2=angle+frac*2*Math.PI;
+      const x1=CX+R*Math.cos(angle),y1=CY+R*Math.sin(angle);
+      const x2=CX+R*Math.cos(a2),y2=CY+R*Math.sin(a2);
+      svg+="<path d='M"+CX+" "+CY+" L"+x1.toFixed(2)+" "+y1.toFixed(2)+
+        " A"+R+" "+R+" 0 "+(frac>0.5?1:0)+" 1 "+x2.toFixed(2)+" "+y2.toFixed(2)+
+        " Z' fill='"+CH_COLORS[c]+"' stroke='#FFFFFF' stroke-width='1.5'/>";
+      angle=a2;
+    });
+  }
+  svg+="</svg>";
+  const legend=chapters.map(c=>
+    "<div class='pl'><span class='sw' style='background:"+CH_COLORS[c]+"'></span>"+CH_NAME[c]+
+    "<span class='pn'>"+cnt[c]+"問（"+Math.round(cnt[c]/total*100)+"%）</span></div>").join("");
+  $("weak-chart").innerHTML="<div class='pie-wrap'>"+svg+"<div class='pie-legend'>"+legend+"</div></div>";
+}
 function renderWeakSec(){
   const wq=weakQuestions();
   const sec=$("weak-sec");
   if(wq.length===0){sec.classList.add("hidden");weakListOpen=false;return;}
   sec.classList.remove("hidden");
   $("weak-n").textContent=wq.length;
+  renderWeakPie(wq);
   $("btn-weak-list").textContent=weakListOpen?"一覧を閉じる":"一覧を表示";
   const list=$("weak-list");
   if(!weakListOpen){list.innerHTML="";return;}
